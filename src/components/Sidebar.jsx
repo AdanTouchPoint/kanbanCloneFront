@@ -10,12 +10,13 @@ export default function Sidebar() {
     logout,
     activeView,
     setActiveView,
-    boards,
+    myBoards,
     activeBoardId,
     setActiveBoardId,
     addBoard,
     deleteBoard,
-    renameBoard
+    renameBoard,
+    canModifyBoard,
   } = useKanban();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -93,21 +94,19 @@ export default function Sidebar() {
         <div className="boards-section">
           <div className="boards-section-header">
             <span>Tableros</span>
-            {isAdmin && (
-              <button
-                className="btn-new-board"
-                onClick={() => setIsAddingBoard(!isAddingBoard)}
-                title="Crear nuevo tablero"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-            )}
+            <button
+              className="btn-new-board"
+              onClick={() => setIsAddingBoard(!isAddingBoard)}
+              title="Crear nuevo tablero"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
           </div>
 
-          {isAddingBoard && isAdmin && (
+          {isAddingBoard && (
             <form className="board-composer" onSubmit={handleCreateBoard}>
               <input
                 type="text"
@@ -135,7 +134,7 @@ export default function Sidebar() {
           )}
 
           <div className="boards-list">
-            {boards.map(b => {
+            {myBoards.map(b => {
               const isActive = b.id === activeBoardId;
               const isEditing = b.id === editingBoardId;
 
@@ -176,7 +175,7 @@ export default function Sidebar() {
                     )}
                   </div>
 
-                  {isAdmin && !isEditing && (
+                  {canModifyBoard(b.id) && !isEditing && (
                     <div className="board-item-actions" onClick={(e) => e.stopPropagation()}>
                       <button
                         className="board-action-btn"
@@ -188,7 +187,7 @@ export default function Sidebar() {
                           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                         </svg>
                       </button>
-                      {boards.length > 1 && (
+                      {myBoards.length > 1 && (
                         <button
                           className="board-action-btn delete"
                           onClick={() => deleteBoard(b.id)}

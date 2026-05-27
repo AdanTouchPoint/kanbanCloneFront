@@ -52,6 +52,8 @@ export const transformBoard = (doc) => ({
   description: doc.description || '',
   columnIds: (doc.columnsID || []).map((c) => (typeof c === 'string' ? c : c.id)),
   taskIds: (doc.tasksID || []).map((t) => (typeof t === 'string' ? t : t.id)),
+  authorId: doc.autorID && (typeof doc.autorID === 'string' ? doc.autorID : doc.autorID.id),
+  memberIds: (doc.membersID || []).map((m) => (typeof m === 'string' ? m : m.id)),
 });
 
 export const transformColumn = (doc) => ({
@@ -101,6 +103,7 @@ export const transformUser = (doc) => ({
   id: doc.id,
   email: doc.email || '',
   name: doc.name || doc.email || '',
+  role: doc.role || 'user',
 });
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────

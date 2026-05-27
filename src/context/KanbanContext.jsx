@@ -50,12 +50,54 @@ export const KanbanProvider = ({ children }) => {
   const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // Role helper — backend Users collection has no role field, so we derive it.
-  // ═════════════════════════════════════════════════════════════════════════════
   const determineRole = (role) => {
-    // Customize this list as needed
-    const adminRoles = ['admin'];
-    return adminRoles.includes(role) ? 'admin' : 'user';
+    if (role === 'superadmin' || role === 'admin') return 'admin';
+    return 'user';
+  };
+
+  // Filter boards to show only those where user is creator or member
+  const myBoards = boards.filter(b => {
+    if (!user) return false;
+    return b.authorId === user.id || b.memberIds?.includes(user.id);
+  });
+
+  const canModifyBoard = (boardId) => {
+    if (!user) return false;
+    const bId = boardId || activeBoardId;
+    if (!bId) return false;
+    if (user.role === 'admin' || user.role === 'superadmin') return true;
+    const board = boards.find(b => b.id === bId);
+    if (!board) return false;
+    if (board.authorId === user.id) return true;
+    if (board.memberIds?.includes(user.id)) {
+      const u = users.find(usr => usr.id === user.id);
+      return u?.role === 'admin' || u?.role === 'superadmin';
+    }
+    return false;
+  };
+
+  const addBoardMember = async (boardId, userId) => {
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return;
+    const newMemberIds = [...new Set([...(board.memberIds || []), userId])];
+    await apiUpdate('boards', boardId, { membersID: newMemberIds });
+    setBoards(prev => prev.map(b => b.id === boardId ? { ...b, memberIds: newMemberIds } : b));
+  };
+
+  const removeBoardMember = async (boardId, userId) => {
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return;
+    const newMemberIds = (board.memberIds || []).filter(id => id !== userId);
+    await apiUpdate('boards', boardId, { membersID: newMemberIds });
+    setBoards(prev => prev.map(b => b.id === boardId ? { ...b, memberIds: newMemberIds } : b));
+  };
+
+  const updateUserRole = async (userId, newRole) => {
+    await apiUpdate('users', userId, { role: newRole });
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    if (user && user.id === userId) {
+      setUser(prev => ({ ...prev, role: determineRole(newRole) }));
+    }
   };
 
   // ═════════════════════════════════════════════════════════════════════════════
@@ -71,15 +113,7 @@ export const KanbanProvider = ({ children }) => {
       setCards(taskList);
       setUsers(userList);
 
-      // Restore or pick the active board
-      if (boardList.length > 0) {
-        const savedId = localStorage.getItem('kb-active-board-id');
-        if (savedId && boardList.find((b) => b.id === savedId)) {
-          setActiveBoardId(savedId);
-        } else {
-          setActiveBoardId(boardList[0].id);
-        }
-      }
+      // Handled by useEffect hook below for dynamic active board resolution
     } catch (err) {
       console.error('[fetchAllData]', err);
       setError(err.message);
@@ -87,6 +121,18 @@ export const KanbanProvider = ({ children }) => {
       setDataLoading(false);
     }
   }, []);
+
+  // Sync / pick active board from user's visible boards
+  useEffect(() => {
+    if (!dataLoading && user && myBoards.length > 0) {
+      const savedId = localStorage.getItem('kb-active-board-id');
+      if (savedId && myBoards.find((b) => b.id === savedId)) {
+        if (activeBoardId !== savedId) setActiveBoardId(savedId);
+      } else {
+        if (activeBoardId !== myBoards[0].id) setActiveBoardId(myBoards[0].id);
+      }
+    }
+  }, [user, boards, dataLoading, activeBoardId]);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // Bootstrap — validate existing token on mount
@@ -197,7 +243,7 @@ export const KanbanProvider = ({ children }) => {
   };
 
   const deleteBoard = async (boardId) => {
-    if (user?.role !== 'admin') return false;
+    if (!canModifyBoard(boardId)) return false;
     if (boards.length <= 1) {
       alert('No puedes eliminar el único tablero existente.');
       return false;
@@ -237,7 +283,7 @@ export const KanbanProvider = ({ children }) => {
   };
 
   const renameBoard = async (boardId, newTitle) => {
-    if (user?.role !== 'admin') return false;
+    if (!canModifyBoard(boardId)) return false;
     setBoards((prev) => prev.map((b) => (b.id === boardId ? { ...b, title: newTitle } : b)));
     await apiUpdate('boards', boardId, { name: newTitle }).catch((e) => setError(e.message));
     return true;
@@ -247,7 +293,7 @@ export const KanbanProvider = ({ children }) => {
   // Column actions
   // ═════════════════════════════════════════════════════════════════════════════
   const addColumn = async (title, color = 'blue') => {
-    if (user?.role !== 'admin') return false;
+    if (!canModifyBoard()) return false;
 
     const doc = await apiCreate('columns', {
       title: makeColTitle(title),
@@ -271,7 +317,7 @@ export const KanbanProvider = ({ children }) => {
   };
 
   const deleteColumn = async (columnId) => {
-    if (user?.role !== 'admin') return false;
+    if (!canModifyBoard()) return false;
 
     const colTasks = cards.filter((c) => c.columnId === columnId);
     const boardCols = columns.filter((c) => c.boardId === activeBoardId && c.id !== columnId);
@@ -318,7 +364,7 @@ export const KanbanProvider = ({ children }) => {
   };
 
   const renameColumn = async (columnId, newTitle) => {
-    if (user?.role !== 'admin') return false;
+    if (!canModifyBoard()) return false;
     const col = columns.find((c) => c.id === columnId);
     if (!col) return false;
 
@@ -374,7 +420,14 @@ export const KanbanProvider = ({ children }) => {
     setCards((prev) =>
       prev.map((card) => {
         if (card.id === cardId) {
-          mergedCard = { ...card, ...updatedData };
+          let extra = {};
+          if ('assigneeId' in updatedData) {
+            const matchedUser = users.find((u) => u.id === updatedData.assigneeId);
+            extra = {
+              assignee: matchedUser ? matchedUser.name : '',
+            };
+          }
+          mergedCard = { ...card, ...updatedData, ...extra };
           return mergedCard;
         }
         return card;
@@ -393,6 +446,7 @@ export const KanbanProvider = ({ children }) => {
         }),
         due: mergedCard.dueDate || null,
         columnsID: mergedCard.columnId,
+        autorID: mergedCard.assigneeId || user.id,
       });
     } catch (err) {
       console.error('[updateCard]', err);
@@ -439,26 +493,24 @@ export const KanbanProvider = ({ children }) => {
   // ═════════════════════════════════════════════════════════════════════════════
   // Subtask (checklist) actions
   // ═════════════════════════════════════════════════════════════════════════════
-  const addSubtask = async (cardId, title, assignee = '', dueDate = '') => {
-    // Try to match the assignee text to a known backend user
-    const assigneeUser = users.find(
-      (u) => u.name === assignee || u.email === assignee
-    );
+  const addSubtask = async (cardId, title, assigneeId = '', dueDate = '') => {
+    const assigneeUser = users.find((u) => u.id === assigneeId);
+    const assigneeName = assigneeUser ? assigneeUser.name : '';
 
     const doc = await apiCreate('checklists', {
       name: title,
       state: 'pending',
       due: dueDate || null,
-      membersID: assigneeUser ? [assigneeUser.id] : [],
+      membersID: assigneeId ? [assigneeId] : [],
     });
 
     const newSub = {
       id: doc.id,
       title,
       completed: false,
-      assignee,
+      assignee: assigneeName,
       dueDate,
-      memberIds: assigneeUser ? [assigneeUser.id] : [],
+      memberIds: assigneeId ? [assigneeId] : [],
     };
 
     let newChecklistIds = [];
@@ -507,13 +559,20 @@ export const KanbanProvider = ({ children }) => {
   };
 
   const updateSubtask = async (cardId, subtaskId, updatedData) => {
+    let resolvedData = { ...updatedData };
+    if (updatedData.assigneeId !== undefined) {
+      const assigneeUser = users.find((u) => u.id === updatedData.assigneeId);
+      resolvedData.assignee = assigneeUser ? assigneeUser.name : '';
+      resolvedData.memberIds = updatedData.assigneeId ? [updatedData.assigneeId] : [];
+    }
+
     setCards((prev) =>
       prev.map((card) => {
         if (card.id === cardId) {
           return {
             ...card,
             subtasks: card.subtasks.map((sub) =>
-              sub.id === subtaskId ? { ...sub, ...updatedData } : sub
+              sub.id === subtaskId ? { ...sub, ...resolvedData } : sub
             ),
           };
         }
@@ -527,6 +586,9 @@ export const KanbanProvider = ({ children }) => {
       apiBody.state = updatedData.completed ? 'completed' : 'pending';
     if (updatedData.dueDate !== undefined)
       apiBody.due = updatedData.dueDate || null;
+    if (updatedData.assigneeId !== undefined) {
+      apiBody.membersID = updatedData.assigneeId ? [updatedData.assigneeId] : [];
+    }
 
     if (Object.keys(apiBody).length > 0) {
       await apiUpdate('checklists', subtaskId, apiBody).catch((e) => setError(e.message));
@@ -643,6 +705,12 @@ export const KanbanProvider = ({ children }) => {
         // Users list (for assignee pickers)
         users,
         fetchAllData,
+        // Board Member & Role actions
+        myBoards,
+        canModifyBoard,
+        addBoardMember,
+        removeBoardMember,
+        updateUserRole,
       }}
     >
       {children}

@@ -15,10 +15,16 @@ export default function CardModal() {
     updateSubtask,
     toggleSubtask,
     deleteSubtask,
-    addComment
+    addComment,
+    users,
+    myBoards,
   } = useKanban();
 
   const card = cards.find(c => c.id === activeCardId);
+  const activeBoard = myBoards.find((b) => b.id === activeBoardId);
+  const boardMembers = users.filter(
+    (u) => activeBoard?.memberIds?.includes(u.id) || u.id === activeBoard?.authorId
+  );
 
   // Local state to avoid input lag on fast typings
   const [localTitle, setLocalTitle] = useState('');
@@ -173,14 +179,28 @@ export default function CardModal() {
                           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                           <circle cx="12" cy="7" r="4" />
                         </svg>
-                        <input
-                          type="text"
-                          className="subtask-inline-input"
-                          placeholder="Responsable..."
-                          value={sub.assignee || ''}
-                          onChange={(e) => updateSubtask(card.id, sub.id, { assignee: e.target.value })}
+                        <select
+                          className="subtask-inline-select"
+                          value={sub.memberIds?.[0] || ''}
+                          onChange={(e) => updateSubtask(card.id, sub.id, { assigneeId: e.target.value })}
                           title="Responsable de la subtarea"
-                        />
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: 'var(--text-secondary)',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            padding: 0
+                          }}
+                        >
+                          <option value="" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>Sin asignar</option>
+                          {boardMembers.map(u => (
+                            <option key={u.id} value={u.id} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+                              {u.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="subtask-detail-field">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -212,13 +232,27 @@ export default function CardModal() {
                     required
                   />
                   <div className="add-subtask-sub-row">
-                    <input
-                      type="text"
-                      className="add-subtask-assignee-input"
-                      placeholder="Asignar a..."
+                    <select
+                      className="add-subtask-assignee-select"
                       value={newSubtaskAssignee}
                       onChange={(e) => setNewSubtaskAssignee(e.target.value)}
-                    />
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                        outline: 'none',
+                        flex: 1
+                      }}
+                    >
+                      <option value="">Asignar a...</option>
+                      {boardMembers.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       type="date"
                       className="add-subtask-date-input"
@@ -281,13 +315,18 @@ export default function CardModal() {
             {/* Assignee */}
             <div className="modal-field-group">
               <label className="modal-field-label">Asignado a</label>
-              <input
-                type="text"
-                className="modal-input"
-                placeholder="Nombre del responsable..."
-                value={card.assignee || ''}
-                onChange={(e) => updateCard(card.id, { assignee: e.target.value })}
-              />
+              <select
+                className="modal-select"
+                value={card.assigneeId || ''}
+                onChange={(e) => updateCard(card.id, { assigneeId: e.target.value })}
+              >
+                <option value="">Sin asignar</option>
+                {boardMembers.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Delete entire task */}
