@@ -139,39 +139,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="login-divider">O ingresa rápido con</div>
 
-        <div className="presets-container">
-          <button
-            type="button"
-            className="preset-btn"
-            onClick={() => handlePresetClick('admin@kanban.com', 'admin123')}
-            disabled={isLoading}
-          >
-            <div className="preset-info">
-              <span className="preset-title">Admin Profile</span>
-              <span className="preset-email">admin@kanban.com</span>
-            </div>
-            <span className="preset-badge admin">Admin</span>
-          </button>
-
-          <button
-            type="button"
-            className="preset-btn"
-            onClick={() => handlePresetClick('user@kanban.com', 'user123')}
-            disabled={isLoading}
-          >
-            <div className="preset-info">
-              <span className="preset-title">User Profile</span>
-              <span className="preset-email">user@kanban.com</span>
-            </div>
-            <span className="preset-badge user">Usuario</span>
-          </button>
-        </div>
-
-        <p className="login-footnote">
-          Los usuarios deben existir en el backend de Payload CMS.
-        </p>
       </div>
     </div>
   );
