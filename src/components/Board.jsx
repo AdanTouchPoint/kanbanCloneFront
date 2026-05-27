@@ -124,13 +124,13 @@ export default function Board() {
               {activeBoard?.title}
             </h1>
           )}
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
             <span className="board-subtitle" style={{ margin: 0 }}>
               {activeBoard?.description || 'Organiza, prioriza y ejecuta tus tareas pendientes'}
             </span>
             <span style={{ color: 'var(--text-secondary)' }}>•</span>
-            
+
             {/* Render members list */}
             <div className="board-members-list" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               {boardMembers.map(m => (
@@ -156,7 +156,7 @@ export default function Board() {
                   {(m.name || m.email).charAt(0).toUpperCase()}
                 </div>
               ))}
-              
+
               {/* Add member button */}
               {canModify && (
                 <button
@@ -306,7 +306,7 @@ export default function Board() {
       {/* Member Manager Modal */}
       {showMemberManager && (
         <div className="modal-overlay" onClick={() => setShowMemberManager(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
             <header className="modal-header">
               <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>Miembros del Tablero</h3>
               <button className="modal-close-btn" onClick={() => setShowMemberManager(false)}>
@@ -316,8 +316,8 @@ export default function Board() {
                 </svg>
               </button>
             </header>
-            
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            <div className="member-manager-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px 24px', overflowY: 'auto' }}>
               {/* Add member form */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Añadir nuevo miembro</label>
