@@ -129,7 +129,7 @@ export const KanbanProvider = ({ children }) => {
   const login = async (email, password) => {
     const data = await apiLogin(email, password);
     setToken(data.token);
-    const role = determineRole(role);
+    const role = determineRole(data.user.role);
     const userData = {
       id: data.user.id,
       email: data.user.email,

@@ -6,7 +6,7 @@
  *   "Display Name‖timestamp" and only show the part before "‖" in the UI.
  */
 
-const BASE_URL = '/api'; // proxied by Vite to http://localhost:3000/api
+const BASE_URL = 'https://kanban-clone-back.vercel.app/api';
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 export const getToken = () => localStorage.getItem('kb-token');
