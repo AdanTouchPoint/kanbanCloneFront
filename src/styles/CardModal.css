@@ -225,6 +225,18 @@
   text-decoration: line-through;
 }
 
+.subtask-title-edit-input {
+  font-size: 14px;
+  color: var(--text-primary);
+  flex-grow: 1;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  outline: none;
+  font-family: inherit;
+}
+
 .subtask-delete-btn {
   color: var(--text-muted);
   width: 24px;

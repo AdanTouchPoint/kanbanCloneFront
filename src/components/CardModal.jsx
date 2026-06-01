@@ -149,76 +149,15 @@ export default function CardModal() {
               <label className="modal-field-label">Subtareas</label>
               <div className="subtasks-list">
                 {card.subtasks.map((sub) => (
-                  <div key={sub.id} className="subtask-item-wrapper">
-                    <div className="subtask-item">
-                      <input
-                        type="checkbox"
-                        className="subtask-checkbox"
-                        checked={sub.completed}
-                        onChange={() => toggleSubtask(card.id, sub.id)}
-                      />
-                      <span className={`subtask-title ${sub.completed ? 'completed' : ''}`}>
-                        {sub.title}
-                      </span>
-                      <button
-                        className="subtask-delete-btn"
-                        onClick={() => deleteSubtask(card.id, sub.id)}
-                        title="Eliminar subtarea"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Subtask assignee and date row */}
-                    <div className="subtask-details-row">
-                      <div className="subtask-detail-field">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        <select
-                          className="subtask-inline-select"
-                          value={sub.memberIds?.[0] || ''}
-                          onChange={(e) => updateSubtask(card.id, sub.id, { assigneeId: e.target.value })}
-                          title="Responsable de la subtarea"
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--text-secondary)',
-                            fontSize: '11px',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            padding: 0
-                          }}
-                        >
-                          <option value="" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>Sin asignar</option>
-                          {boardMembers.map(u => (
-                            <option key={u.id} value={u.id} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-                              {u.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="subtask-detail-field">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                          <line x1="16" y1="2" x2="16" y2="6" />
-                          <line x1="8" y1="2" x2="8" y2="6" />
-                          <line x1="3" y1="10" x2="21" y2="10" />
-                        </svg>
-                        <input
-                          type="date"
-                          className="subtask-inline-date"
-                          value={sub.dueDate || ''}
-                          onChange={(e) => updateSubtask(card.id, sub.id, { dueDate: e.target.value })}
-                          title="Fecha límite de la subtarea"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <SubtaskRow
+                    key={sub.id}
+                    sub={sub}
+                    cardId={card.id}
+                    boardMembers={boardMembers}
+                    toggleSubtask={toggleSubtask}
+                    deleteSubtask={deleteSubtask}
+                    updateSubtask={updateSubtask}
+                  />
                 ))}
               </div>
               <form className="add-subtask-form" onSubmit={handleAddSubtaskSubmit}>
@@ -342,6 +281,124 @@ export default function CardModal() {
               <span>Eliminar Tarea</span>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, updateSubtask }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [localTitle, setLocalTitle] = useState(sub.title);
+
+  useEffect(() => {
+    setLocalTitle(sub.title);
+  }, [sub.title]);
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    const trimmed = localTitle.trim();
+    if (trimmed && trimmed !== sub.title) {
+      updateSubtask(cardId, sub.id, { title: trimmed });
+    } else {
+      setLocalTitle(sub.title);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    } else if (e.key === 'Escape') {
+      setLocalTitle(sub.title);
+      setIsEditing(false);
+    }
+  };
+
+  return (
+    <div className="subtask-item-wrapper">
+      <div className="subtask-item">
+        <input
+          type="checkbox"
+          className="subtask-checkbox"
+          checked={sub.completed}
+          onChange={() => toggleSubtask(cardId, sub.id)}
+        />
+        {isEditing ? (
+          <input
+            type="text"
+            className="subtask-title-edit-input"
+            value={localTitle}
+            onChange={(e) => setLocalTitle(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+          />
+        ) : (
+          <span
+            className={`subtask-title ${sub.completed ? 'completed' : ''}`}
+            onClick={() => setIsEditing(true)}
+            title="Haz clic para editar la subtarea"
+            style={{ cursor: 'pointer' }}
+          >
+            {sub.title}
+          </span>
+        )}
+        <button
+          className="subtask-delete-btn"
+          onClick={() => deleteSubtask(cardId, sub.id)}
+          title="Eliminar subtarea"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Subtask assignee and date row */}
+      <div className="subtask-details-row">
+        <div className="subtask-detail-field">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <select
+            className="subtask-inline-select"
+            value={sub.memberIds?.[0] || ''}
+            onChange={(e) => updateSubtask(cardId, sub.id, { assigneeId: e.target.value })}
+            title="Responsable de la subtarea"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: '11px',
+              cursor: 'pointer',
+              outline: 'none',
+              padding: 0
+            }}
+          >
+            <option value="" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>Sin asignar</option>
+            {boardMembers.map(u => (
+              <option key={u.id} value={u.id} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="subtask-detail-field">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <input
+            type="date"
+            className="subtask-inline-date"
+            value={sub.dueDate || ''}
+            onChange={(e) => updateSubtask(cardId, sub.id, { dueDate: e.target.value })}
+            title="Fecha límite de la subtarea"
+          />
         </div>
       </div>
     </div>
