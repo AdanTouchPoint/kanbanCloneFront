@@ -183,41 +183,69 @@ export const apiDelete = async (slug, id) => {
   return res.json();
 };
 
-// ─── High-level loader ────────────────────────────────────────────────────────
-/**
- * Loads all boards, columns, tasks, and checklists in a single parallel
- * request batch and joins them into the frontend shape.
- */
-export const loadBoardData = async () => {
-  const [boardDocs, columnDocs, taskDocs, checklistDocs, userDocs] =
-    await Promise.all([
-      apiList('boards'),
-      apiList('columns'),
-      apiList('tasks', { depth: 1 }),
-      apiList('checklists', { depth: 1 }),
-      apiList('users'),
-    ]);
-
+export const loadInitialData = async () => {
+  const [boardDocs, userDocs] = await Promise.all([
+    apiList('boards'),
+    apiList('users'),
+  ]);
   const boardList = boardDocs.map(transformBoard);
-  const columnRaw = columnDocs.map(transformColumn);
   const userList = userDocs.map(transformUser);
+  return { boardList, userList };
+};
 
-  // Build checklist lookup
+export const loadActiveBoardDetails = async (board) => {
+  if (!board) return { columnList: [], taskList: [] };
+
+  const colIds = board.columnIds || [];
+  if (colIds.length === 0) return { columnList: [], taskList: [] };
+
+  // Construir parámetros de filtro para obtener solo las columnas de este tablero
+  const colParams = {};
+  colIds.forEach((id, idx) => {
+    colParams[`where[id][in][${idx}]`] = id;
+  });
+
+  const taskIds = board.taskIds || [];
+  const taskParams = { depth: 1 };
+  if (taskIds.length > 0) {
+    taskIds.forEach((id, idx) => {
+      taskParams[`where[id][in][${idx}]`] = id;
+    });
+  }
+
+  // Realizar peticiones en paralelo
+  const [columnDocs, taskDocs] = await Promise.all([
+    apiList('columns', colParams),
+    taskIds.length > 0 ? apiList('tasks', taskParams) : Promise.resolve([]),
+  ]);
+
+  const columnRaw = columnDocs.map(transformColumn);
+  const columnList = columnRaw.map((col) => ({
+    ...col,
+    boardId: board.id,
+  }));
+
+  // Obtener solo los checklists requeridos por las tareas del tablero
+  const checklistIds = [];
+  taskDocs.forEach((task) => {
+    const ids = (task.checkListsID || []).map((c) => (typeof c === 'string' ? c : c.id));
+    checklistIds.push(...ids);
+  });
+
+  const checklistDocs = [];
+  if (checklistIds.length > 0) {
+    const checklistParams = { depth: 1 };
+    checklistIds.forEach((id, idx) => {
+      checklistParams[`where[id][in][${idx}]`] = id;
+    });
+    const docs = await apiList('checklists', checklistParams);
+    checklistDocs.push(...docs);
+  }
+
   const checklistMap = {};
   checklistDocs.forEach((doc) => {
     checklistMap[doc.id] = transformChecklist(doc);
   });
-
-  // Invert board→columns to get boardId per column
-  const colBoardMap = {};
-  boardList.forEach((b) =>
-    b.columnIds.forEach((cid) => (colBoardMap[cid] = b.id))
-  );
-
-  const columnList = columnRaw.map((col) => ({
-    ...col,
-    boardId: colBoardMap[col.id] || null,
-  }));
 
   const taskList = taskDocs.map((doc) => {
     const card = transformTask(doc);
@@ -227,5 +255,15 @@ export const loadBoardData = async () => {
     return card;
   });
 
-  return { boardList, columnList, taskList, userList };
+  return { columnList, taskList };
+};
+
+// Mantener compatibilidad si algún componente la llama
+export const loadBoardData = async () => {
+  const { boardList, userList } = await loadInitialData();
+  if (boardList.length > 0) {
+    const { columnList, taskList } = await loadActiveBoardDetails(boardList[0]);
+    return { boardList, columnList, taskList, userList };
+  }
+  return { boardList, columnList: [], taskList: [], userList };
 };

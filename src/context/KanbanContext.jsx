@@ -3,7 +3,7 @@ import {
   getToken, setToken, removeToken,
   apiLogin, apiLogout, apiGetMe,
   apiList, apiCreate, apiUpdate, apiDelete,
-  loadBoardData,
+  loadInitialData, loadActiveBoardDetails,
   makeColTitle, renameColTitle,
   transformBoard, transformColumn, transformTask, transformChecklist, transformUser,
 } from '../services/api';
@@ -107,13 +107,9 @@ export const KanbanProvider = ({ children }) => {
     setDataLoading(true);
     setError(null);
     try {
-      const { boardList, columnList, taskList, userList } = await loadBoardData();
+      const { boardList, userList } = await loadInitialData();
       setBoards(boardList);
-      setColumns(columnList);
-      setCards(taskList);
       setUsers(userList);
-
-      // Handled by useEffect hook below for dynamic active board resolution
     } catch (err) {
       console.error('[fetchAllData]', err);
       setError(err.message);
@@ -121,6 +117,34 @@ export const KanbanProvider = ({ children }) => {
       setDataLoading(false);
     }
   }, []);
+
+  // Fetch active board's columns and cards when activeBoardId changes
+  useEffect(() => {
+    const loadActiveBoard = async () => {
+      if (!activeBoardId) {
+        setColumns([]);
+        setCards([]);
+        return;
+      }
+      const activeBoard = boards.find((b) => b.id === activeBoardId);
+      if (!activeBoard) return;
+
+      setDataLoading(true);
+      setError(null);
+      try {
+        const { columnList, taskList } = await loadActiveBoardDetails(activeBoard);
+        setColumns(columnList);
+        setCards(taskList);
+      } catch (err) {
+        console.error('[loadActiveBoard]', err);
+        setError(err.message);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    loadActiveBoard();
+  }, [activeBoardId, boards]);
 
   // Sync / pick active board from user's visible boards
   useEffect(() => {

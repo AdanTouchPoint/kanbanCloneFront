@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, memo } from 'react';
 import { useKanban } from '../context/KanbanContext';
 import Card from './Card';
 import '../styles/Column.css';
 
-export default function Column({ column, cards }) {
+function Column({ column, cards }) {
   const { user, renameColumn, deleteColumn, addCard, moveCard } = useKanban();
   const [title, setTitle] = useState(column.title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -179,3 +179,22 @@ export default function Column({ column, cards }) {
     </div>
   );
 }
+
+export default memo(Column, (prevProps, nextProps) => {
+  if (
+    prevProps.column.id !== nextProps.column.id ||
+    prevProps.column.title !== nextProps.column.title ||
+    prevProps.column.color !== nextProps.column.color
+  ) {
+    return false;
+  }
+  if (prevProps.cards.length !== nextProps.cards.length) {
+    return false;
+  }
+  for (let i = 0; i < prevProps.cards.length; i++) {
+    if (prevProps.cards[i] !== nextProps.cards[i]) {
+      return false;
+    }
+  }
+  return true;
+});

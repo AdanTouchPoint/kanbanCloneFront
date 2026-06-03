@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { useKanban } from '../context/KanbanContext';
 import '../styles/Card.css';
 
-export default function Card({ card }) {
+function Card({ card }) {
   const { deleteCard, setActiveCardId } = useKanban();
   const [isDragging, setIsDragging] = useState(false);
 
@@ -61,8 +61,8 @@ export default function Card({ card }) {
         <span className={`priority-badge ${card.priority}`}>
           {card.priority === 'high' ? 'Alta' : card.priority === 'medium' ? 'Media' : 'Baja'}
         </span>
-        <button 
-          className="card-delete-btn" 
+        <button
+          className="card-delete-btn"
           onClick={handleDelete}
           title="Eliminar tarea"
         >
@@ -74,7 +74,7 @@ export default function Card({ card }) {
       </div>
 
       <h3 className="card-title">{card.title}</h3>
-      
+
       {card.description && (
         <p className="card-desc">{card.description}</p>
       )}
@@ -86,29 +86,17 @@ export default function Card({ card }) {
             <span>{completedSubtasks}/{totalSubtasks}</span>
           </div>
           <div className="card-subtasks-progress-bar">
-            <div 
-              className="card-subtasks-progress-fill" 
+            <div
+              className="card-subtasks-progress-fill"
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
         </div>
       )}
-
-      <div className="card-footer-row">
-        <div className={`card-date-badge ${isOverdue() ? 'overdue' : ''}`}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          <span>{card.dueDate || 'Sin fecha'}</span>
-        </div>
-
-        <div className="card-assignee-avatar" title={card.assignee || 'Sin Asignar'}>
-          {getAssigneeInitials(card.assignee)}
-        </div>
-      </div>
     </div>
   );
 }
+
+export default memo(Card, (prevProps, nextProps) => {
+  return prevProps.card === nextProps.card;
+});
