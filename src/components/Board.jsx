@@ -73,7 +73,7 @@ export default function Board() {
   };
 
   const canModify = canModifyBoard(activeBoard?.id);
-  const boardColumns = columns.filter(col => col.boardId === activeBoardId);
+  const boardColumns = columns.filter(col => col.boardId === activeBoardId).reverse();
 
   const [showMemberManager, setShowMemberManager] = useState(false);
   const [selectedUserIdToAdd, setSelectedUserIdToAdd] = useState('');
