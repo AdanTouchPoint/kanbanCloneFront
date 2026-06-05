@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useKanban } from '../context/KanbanContext';
 import '../styles/CardModal.css';
 
+const COLOR_PRESETS = [
+  { value: '#ef4444', label: 'Rojo' },
+  { value: '#f97316', label: 'Naranja' },
+  { value: '#eab308', label: 'Amarillo' },
+  { value: '#22c55e', label: 'Verde' },
+  { value: '#3b82f6', label: 'Azul' },
+  { value: '#a855f7', label: 'Morado' },
+];
+
 export default function CardModal() {
   const {
     activeCardId,
@@ -18,6 +27,7 @@ export default function CardModal() {
     addComment,
     users,
     myBoards,
+    updateColorNameOnBoard,
   } = useKanban();
 
   const card = cards.find(c => c.id === activeCardId);
@@ -33,14 +43,16 @@ export default function CardModal() {
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState('');
   const [newSubtaskDate, setNewSubtaskDate] = useState('');
   const [newComment, setNewComment] = useState('');
+  const [localColorName, setLocalColorName] = useState('');
 
   // Sync local state when modal opens or card updates from outside
   useEffect(() => {
     if (card) {
       setLocalTitle(card.title);
       setLocalDesc(card.description || '');
+      setLocalColorName(card.colorName || '');
     }
-  }, [activeCardId, card?.id]);
+  }, [activeCardId, card?.id, card?.color, card?.colorName]);
 
   if (!card) return null;
 
@@ -266,6 +278,63 @@ export default function CardModal() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Color de la Tarjeta */}
+            <div className="modal-field-group">
+              <label className="modal-field-label">Color de Tarjeta</label>
+              <div className="card-color-picker">
+                {COLOR_PRESETS.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    className={`color-picker-dot ${card.color === p.value ? 'active' : ''}`}
+                    style={{ backgroundColor: p.value }}
+                    onClick={() => {
+                      const newColor = card.color === p.value ? null : p.value;
+                      // Find if this color already has a name on this board's cards
+                      const existingCardWithColor = cards.find(
+                        (c) => c.color === newColor && c.colorName
+                      );
+                      const defaultName = existingCardWithColor ? existingCardWithColor.colorName : '';
+                      updateCard(card.id, { color: newColor, colorName: defaultName });
+                    }}
+                    title={p.label}
+                  />
+                ))}
+                {card.color && (
+                  <button
+                    type="button"
+                    className="color-picker-clear-btn"
+                    onClick={() => updateCard(card.id, { color: null, colorName: '' })}
+                    title="Quitar color"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              {card.color && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="Nombrar este color..."
+                    value={localColorName}
+                    onChange={(e) => setLocalColorName(e.target.value)}
+                    onBlur={() => {
+                      if (localColorName !== card.colorName) {
+                        updateColorNameOnBoard(card.color, localColorName.trim());
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.target.blur();
+                      }
+                    }}
+                    title="Ponle un nombre a este color para todo el tablero"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Delete entire task */}

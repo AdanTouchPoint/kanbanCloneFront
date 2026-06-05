@@ -15,6 +15,8 @@ export default function Board() {
     setSearchQuery,
     priorityFilter,
     setPriorityFilter,
+    colorFilter,
+    setColorFilter,
     addColumn,
     canModifyBoard,
     addBoardMember,
@@ -81,6 +83,22 @@ export default function Board() {
   const boardMembers = users.filter(
     (u) => activeBoard?.memberIds?.includes(u.id) || u.id === activeBoard?.authorId
   );
+
+  const activeBoardColIds = new Set(columns.filter(col => col.boardId === activeBoardId).map(c => c.id));
+  const activeBoardCards = cards.filter(card => activeBoardColIds.has(card.columnId));
+
+  const uniqueColorsMap = {};
+  activeBoardCards.forEach((card) => {
+    if (card.color) {
+      if (!uniqueColorsMap[card.color] || card.colorName) {
+        uniqueColorsMap[card.color] = card.colorName || '';
+      }
+    }
+  });
+  const uniqueColors = Object.entries(uniqueColorsMap).map(([color, name]) => ({
+    color,
+    name,
+  }));
 
   const handleAddMemberSubmit = () => {
     if (selectedUserIdToAdd && activeBoard) {
@@ -245,14 +263,26 @@ export default function Board() {
               priorityFilter === 'all' ||
               card.priority === priorityFilter;
 
-            return matchesColumn && matchesSearch && matchesPriority;
+            const matchesColor =
+              colorFilter === 'all' ||
+              card.color === colorFilter;
+
+            return matchesColumn && matchesSearch && matchesPriority && matchesColor;
+          });
+
+          // Sort cards based on active board task order
+          const sortedCards = [...filteredCards].sort((a, b) => {
+            const taskIds = activeBoard?.taskIds || [];
+            const indexA = taskIds.indexOf(a.id);
+            const indexB = taskIds.indexOf(b.id);
+            return indexA - indexB;
           });
 
           return (
             <Column
               key={column.id}
               column={column}
-              cards={filteredCards}
+              cards={sortedCards}
             />
           );
         })}
@@ -441,6 +471,31 @@ export default function Board() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Bottom Color Filter Tabs */}
+      {uniqueColors.length > 1 && (
+        <div className="bottom-color-filter-bar glass animate-fade-in">
+          <span className="filter-bar-label">Filtrar por color:</span>
+          <div className="filter-tabs">
+            <button
+              className={`filter-tab ${colorFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setColorFilter('all')}
+            >
+              Todos
+            </button>
+            {uniqueColors.map(({ color, name }) => (
+              <button
+                key={color}
+                className={`filter-tab ${colorFilter === color ? 'active' : ''}`}
+                onClick={() => setColorFilter(color)}
+                style={{ '--tab-color': color }}
+              >
+                <span className="tab-color-dot" style={{ backgroundColor: color }} />
+                <span>{name || 'Sin nombre'}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}

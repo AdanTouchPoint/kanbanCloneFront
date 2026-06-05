@@ -38,11 +38,19 @@ export const renameColTitle = (rawTitle = '', newDisplay) => {
 const parseTaskExtras = (state) => {
   try {
     const parsed = JSON.parse(state || '{}');
-    if (parsed && typeof parsed === 'object') return parsed;
+    if (parsed && typeof parsed === 'object') {
+      return {
+        description: parsed.description || '',
+        priority: parsed.priority || 'medium',
+        comments: parsed.comments || [],
+        color: parsed.color || null,
+        colorName: parsed.colorName || '',
+      };
+    }
   } catch {
     /* fall through */
   }
-  return { description: String(state || ''), priority: 'medium', comments: [] };
+  return { description: String(state || ''), priority: 'medium', comments: [], color: null, colorName: '' };
 };
 
 // ─── Transformers: API doc → frontend shape ───────────────────────────────────
@@ -81,6 +89,8 @@ export const transformTask = (doc) => {
     checklistIds: (doc.checkListsID || []).map((c) =>
       typeof c === 'string' ? c : c.id
     ),
+    color: extras.color || null,
+    colorName: extras.colorName || '',
   };
 };
 

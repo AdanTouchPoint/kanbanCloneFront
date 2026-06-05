@@ -32,6 +32,7 @@ export const KanbanProvider = ({ children }) => {
   // ─── Filters & navigation ─────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [colorFilter, setColorFilter] = useState('all');
   const [activeView, setActiveView] = useState('board');
   const [activeCardId, setActiveCardId] = useState(null);
 
@@ -126,6 +127,7 @@ export const KanbanProvider = ({ children }) => {
         setCards([]);
         return;
       }
+      setColorFilter('all');
       const activeBoard = boards.find((b) => b.id === activeBoardId);
       if (!activeBoard) return;
 
@@ -410,6 +412,8 @@ export const KanbanProvider = ({ children }) => {
       description: cardData.description || '',
       priority: cardData.priority || 'medium',
       comments: [],
+      color: cardData.color || null,
+      colorName: cardData.colorName || '',
     });
 
     const doc = await apiCreate('tasks', {
@@ -467,6 +471,8 @@ export const KanbanProvider = ({ children }) => {
           description: mergedCard.description,
           priority: mergedCard.priority,
           comments: mergedCard.comments || [],
+          color: mergedCard.color || null,
+          colorName: mergedCard.colorName || '',
         }),
         due: mergedCard.dueDate || null,
         columnsID: mergedCard.columnId,
@@ -475,6 +481,33 @@ export const KanbanProvider = ({ children }) => {
     } catch (err) {
       console.error('[updateCard]', err);
       setError(err.message);
+    }
+  };
+
+  const updateColorNameOnBoard = async (color, newName) => {
+    // 1. Optimistic UI update
+    setCards((prev) =>
+      prev.map((c) => (c.color === color ? { ...c, colorName: newName } : c))
+    );
+
+    // 2. Persist to API in background
+    const activeBoard = boards.find((b) => b.id === activeBoardId);
+    if (!activeBoard) return;
+
+    const cardsToUpdate = cards.filter(
+      (c) => c.color === color && activeBoard.taskIds.includes(c.id)
+    );
+
+    for (const card of cardsToUpdate) {
+      await apiUpdate('tasks', card.id, {
+        state: JSON.stringify({
+          description: card.description,
+          priority: card.priority,
+          comments: card.comments || [],
+          color: card.color,
+          colorName: newName,
+        }),
+      }).catch((err) => console.error('[updateColorNameOnBoard]', err));
     }
   };
 
@@ -505,13 +538,48 @@ export const KanbanProvider = ({ children }) => {
     }
   };
 
-  const moveCard = async (cardId, targetColumnId) => {
+  const moveCard = async (cardId, targetColumnId, beforeCardId = null) => {
+    // 1. Update card's column locally
     setCards((prev) =>
       prev.map((c) => (c.id === cardId ? { ...c, columnId: targetColumnId } : c))
     );
-    await apiUpdate('tasks', cardId, { columnsID: targetColumnId }).catch((e) =>
-      setError(e.message)
-    );
+
+    // 2. Find board and reorder tasksID array
+    const col = columns.find((c) => c.id === targetColumnId);
+    const board = col ? boards.find((b) => b.id === col.boardId) : null;
+
+    if (board) {
+      // Remove cardId from existing position
+      let newTaskIds = board.taskIds.filter((id) => id !== cardId);
+
+      if (beforeCardId) {
+        // Insert cardId before beforeCardId
+        const targetIdx = newTaskIds.indexOf(beforeCardId);
+        if (targetIdx !== -1) {
+          newTaskIds.splice(targetIdx, 0, cardId);
+        } else {
+          newTaskIds.push(cardId);
+        }
+      } else {
+        // Append cardId at the end
+        newTaskIds.push(cardId);
+      }
+
+      // Update local board state
+      setBoards((prev) =>
+        prev.map((b) => (b.id === board.id ? { ...b, taskIds: newTaskIds } : b))
+      );
+
+      // Persist column change in task
+      await apiUpdate('tasks', cardId, { columnsID: targetColumnId }).catch((e) =>
+        setError(e.message)
+      );
+
+      // Persist reordered taskIds in board
+      await apiUpdate('boards', board.id, { tasksID: newTaskIds }).catch((e) =>
+        setError(e.message)
+      );
+    }
   };
 
   // ═════════════════════════════════════════════════════════════════════════════
@@ -710,6 +778,9 @@ export const KanbanProvider = ({ children }) => {
         setSearchQuery,
         priorityFilter,
         setPriorityFilter,
+        colorFilter,
+        setColorFilter,
+        updateColorNameOnBoard,
         activeView,
         setActiveView,
         activeCardId,

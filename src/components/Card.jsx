@@ -3,8 +3,9 @@ import { useKanban } from '../context/KanbanContext';
 import '../styles/Card.css';
 
 function Card({ card }) {
-  const { deleteCard, setActiveCardId } = useKanban();
+  const { deleteCard, setActiveCardId, moveCard } = useKanban();
   const [isDragging, setIsDragging] = useState(false);
+  const [isDragOverCard, setIsDragOverCard] = useState(false);
 
   // Subtasks progress calculations
   const totalSubtasks = card.subtasks.length;
@@ -30,6 +31,26 @@ function Card({ card }) {
     setIsDragging(false);
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverCard(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOverCard(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverCard(false);
+    const draggedCardId = e.dataTransfer.getData('text/plain');
+    if (draggedCardId && draggedCardId !== card.id) {
+      moveCard(draggedCardId, card.columnId, card.id);
+    }
+  };
+
   const handleDelete = (e) => {
     e.stopPropagation(); // Prevent opening modal
     const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar la tarea "${card.title}"?`);
@@ -50,13 +71,24 @@ function Card({ card }) {
 
   return (
     <div
-      className={`card-wrapper ${isDragging ? 'dragging' : ''}`}
+      className={`card-wrapper ${isDragging ? 'dragging' : ''} ${isDragOverCard ? 'drag-over-card' : ''}`}
       draggable="true"
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onClick={() => setActiveCardId(card.id)}
+      style={card.color ? { backgroundColor: `${card.color}0f`, borderColor: `${card.color}33` } : {}}
       title="Haz clic para ver detalles de la tarea"
     >
+      {card.color && (
+        <div
+          className="card-color-stripe"
+          style={{ backgroundColor: card.color }}
+          title={card.colorName || ''}
+        />
+      )}
       <div className="card-header-row">
         <span className={`priority-badge ${card.priority}`}>
           {card.priority === 'high' ? 'Alta' : card.priority === 'medium' ? 'Media' : 'Baja'}
