@@ -20,6 +20,7 @@ export default function CardModal() {
     activeBoardId,
     updateCard,
     deleteCard,
+    duplicateCard,
     addSubtask,
     updateSubtask,
     toggleSubtask,
@@ -29,6 +30,9 @@ export default function CardModal() {
     myBoards,
     updateColorNameOnBoard,
   } = useKanban();
+
+  const [duplicating, setDuplicating] = React.useState(false);
+  const [duplicateSuccess, setDuplicateSuccess] = React.useState(false);
 
   const card = cards.find(c => c.id === activeCardId);
   const activeBoard = myBoards.find((b) => b.id === activeBoardId);
@@ -95,6 +99,18 @@ export default function CardModal() {
     const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar la tarea "${card.title}"?`);
     if (confirmDelete) {
       deleteCard(card.id);
+    }
+  };
+
+  const handleDuplicateCard = async () => {
+    if (duplicating) return;
+    setDuplicating(true);
+    try {
+      await duplicateCard(card.id);
+      setDuplicateSuccess(true);
+      setTimeout(() => setDuplicateSuccess(false), 2000);
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -336,6 +352,30 @@ export default function CardModal() {
                 </div>
               )}
             </div>
+
+            {/* Duplicate task */}
+            <button
+              className={`modal-sidebar-duplicate-btn ${duplicateSuccess ? 'success' : ''}`}
+              onClick={handleDuplicateCard}
+              disabled={duplicating}
+              title="Duplicar esta tarea en la misma columna"
+            >
+              {duplicating ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="spin-icon">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : duplicateSuccess ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              )}
+              <span>{duplicating ? 'Duplicando...' : duplicateSuccess ? '¡Duplicada!' : 'Duplicar Tarea'}</span>
+            </button>
 
             {/* Delete entire task */}
             <button

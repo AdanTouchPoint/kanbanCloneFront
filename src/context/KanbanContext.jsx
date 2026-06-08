@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import {
   getToken, setToken, removeToken,
   apiLogin, apiLogout, apiGetMe,
@@ -23,6 +23,15 @@ export const KanbanProvider = ({ children }) => {
   const [columns, setColumns] = useState([]);
   const [cards, setCards] = useState([]);
   const [users, setUsers] = useState([]); // all users for assignee dropdowns
+
+  // Keep a ref to columns so closures like moveCard always read the latest value
+  const columnsRef = useRef(columns);
+  useEffect(() => { columnsRef.current = columns; }, [columns]);
+
+  // Keep a ref to boards so the loadActiveBoard effect can read boards without
+  // boards being in the dependency array (which caused infinite re-fetch loops)
+  const boardsRef2 = useRef(boards);
+  useEffect(() => { boardsRef2.current = boards; }, [boards]);
 
   // ─── Loading / error ──────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);       // initial session check
@@ -119,7 +128,10 @@ export const KanbanProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch active board's columns and cards when activeBoardId changes
+  // Fetch active board's columns and cards ONLY when activeBoardId changes.
+  // We use boardsRef2 to read the latest boards without adding `boards` to deps
+  // (which would cause this effect to re-run on every optimistic board update,
+  // overwriting local state with potentially-stale API data).
   useEffect(() => {
     const loadActiveBoard = async () => {
       if (!activeBoardId) {
@@ -128,7 +140,7 @@ export const KanbanProvider = ({ children }) => {
         return;
       }
       setColorFilter('all');
-      const activeBoard = boards.find((b) => b.id === activeBoardId);
+      const activeBoard = boardsRef2.current.find((b) => b.id === activeBoardId);
       if (!activeBoard) return;
 
       setDataLoading(true);
@@ -146,7 +158,8 @@ export const KanbanProvider = ({ children }) => {
     };
 
     loadActiveBoard();
-  }, [activeBoardId, boards]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBoardId]); // ← intentionally omit `boards` to prevent re-fetch on every board update
 
   // Sync / pick active board from user's visible boards
   useEffect(() => {
@@ -158,7 +171,7 @@ export const KanbanProvider = ({ children }) => {
         if (activeBoardId !== myBoards[0].id) setActiveBoardId(myBoards[0].id);
       }
     }
-  }, [user, boards, dataLoading, activeBoardId]);
+  }, [user, dataLoading, activeBoardId]); // removed `boards` — myBoards already reacts to boards changes
 
   // ═════════════════════════════════════════════════════════════════════════════
   // Bootstrap — validate existing token on mount
@@ -425,21 +438,30 @@ export const KanbanProvider = ({ children }) => {
       checkListsID: [],
     });
 
-    const newCard = transformTask(doc);
-    newCard.assignee = user.name || '';
+    // Build the new card with guaranteed correct columnId (don't rely on transformTask
+    // for columnId since the API response may have it populated as an object)
+    const newCard = {
+      ...transformTask(doc),
+      columnId,          // override with the known value
+      assignee: user.name || '',
+      subtasks: [],
+    };
 
-    // Update board's tasksID
-    const col = columns.find((c) => c.id === columnId);
-    const board = col ? boards.find((b) => b.id === col.boardId) : null;
-    if (board) {
-      const newTaskIds = [...board.taskIds, doc.id];
-      await apiUpdate('boards', board.id, { tasksID: newTaskIds }).catch(() => { });
-      setBoards((prev) =>
-        prev.map((b) => (b.id === board.id ? { ...b, taskIds: newTaskIds } : b))
-      );
-    }
-
+    // 1. Update local state IMMEDIATELY (optimistic) — card appears right away
     setCards((prev) => [...prev, newCard]);
+
+    // 2. Update board taskIds in state + persist to API in background
+    setBoards((prevBoards) => {
+      const targetCol = columnsRef.current.find((c) => c.id === columnId);
+      if (!targetCol) return prevBoards;
+      const board = prevBoards.find((b) => b.id === targetCol.boardId);
+      if (!board) return prevBoards;
+      const newTaskIds = [...board.taskIds, doc.id];
+      // Fire-and-forget API update
+      apiUpdate('boards', board.id, { tasksID: newTaskIds }).catch(() => {});
+      return prevBoards.map((b) => (b.id === board.id ? { ...b, taskIds: newTaskIds } : b));
+    });
+
     return newCard;
   };
 
@@ -538,47 +560,128 @@ export const KanbanProvider = ({ children }) => {
     }
   };
 
+  const duplicateCard = async (cardId) => {
+    const original = cards.find((c) => c.id === cardId);
+    if (!original) return null;
+
+    const stateBlob = JSON.stringify({
+      description: original.description || '',
+      priority: original.priority || 'medium',
+      comments: [],
+      color: original.color || null,
+      colorName: original.colorName || '',
+    });
+
+    // 1. Create the duplicated task in API
+    const doc = await apiCreate('tasks', {
+      name: `Copia de ${original.title}`,
+      autorID: user.id,
+      state: stateBlob,
+      due: original.dueDate || null,
+      columnsID: original.columnId,
+      checkListsID: [],
+    });
+
+    // 2. Duplicate subtasks in background
+    const copiedChecklistIds = [];
+    const copiedSubtasks = [];
+    for (const sub of original.subtasks || []) {
+      const subDoc = await apiCreate('checklists', {
+        name: sub.title,
+        state: sub.completed ? 'completed' : 'pending',
+        due: sub.dueDate || null,
+        membersID: sub.memberIds || [],
+      });
+      copiedChecklistIds.push(subDoc.id);
+      copiedSubtasks.push({
+        id: subDoc.id,
+        title: sub.title,
+        completed: sub.completed,
+        assignee: sub.assignee || '',
+        dueDate: sub.dueDate || '',
+        memberIds: sub.memberIds || [],
+      });
+    }
+
+    if (copiedChecklistIds.length > 0) {
+      apiUpdate('tasks', doc.id, { checkListsID: copiedChecklistIds }).catch(() => {});
+    }
+
+    // Build new card with guaranteed correct columnId
+    const newCard = {
+      ...transformTask(doc),
+      columnId: original.columnId,   // override — don't rely on API response
+      assignee: user.name || '',
+      subtasks: copiedSubtasks,
+      checklistIds: copiedChecklistIds,
+    };
+
+    // 3. Update local state IMMEDIATELY — card appears right away
+    setCards((prev) => [...prev, newCard]);
+
+    // 4. Update board taskIds in state + persist to API in background
+    setBoards((prevBoards) => {
+      const targetCol = columnsRef.current.find((c) => c.id === original.columnId);
+      if (!targetCol) return prevBoards;
+      const board = prevBoards.find((b) => b.id === targetCol.boardId);
+      if (!board) return prevBoards;
+      const newTaskIds = [...board.taskIds, doc.id];
+      apiUpdate('boards', board.id, { tasksID: newTaskIds }).catch(() => {});
+      return prevBoards.map((b) => (b.id === board.id ? { ...b, taskIds: newTaskIds } : b));
+    });
+
+    return newCard;
+  };
+
   const moveCard = async (cardId, targetColumnId, beforeCardId = null) => {
-    // 1. Update card's column locally
-    setCards((prev) =>
-      prev.map((c) => (c.id === cardId ? { ...c, columnId: targetColumnId } : c))
-    );
+    // Use functional updaters to always read the latest state, avoiding stale closures.
 
-    // 2. Find board and reorder tasksID array
-    const col = columns.find((c) => c.id === targetColumnId);
-    const board = col ? boards.find((b) => b.id === col.boardId) : null;
+    let boardId = null;
+    let newTaskIds = null;
 
-    if (board) {
-      // Remove cardId from existing position
-      let newTaskIds = board.taskIds.filter((id) => id !== cardId);
+    // 1. Update card column + compute new taskIds atomically from latest boards/columns
+    setCards((prevCards) => prevCards.map((c) => (c.id === cardId ? { ...c, columnId: targetColumnId } : c)));
+
+    setBoards((prevBoards) => {
+      // Find the board that owns targetColumnId using the ref (always fresh)
+      const targetCol = columnsRef.current.find((c) => c.id === targetColumnId);
+      if (!targetCol) return prevBoards;
+
+      const board = prevBoards.find((b) => b.id === targetCol.boardId);
+      if (!board) return prevBoards;
+
+      boardId = board.id;
+
+      // Reorder: remove from old position, insert at new position
+      let ids = board.taskIds.filter((id) => id !== cardId);
 
       if (beforeCardId) {
-        // Insert cardId before beforeCardId
-        const targetIdx = newTaskIds.indexOf(beforeCardId);
+        const targetIdx = ids.indexOf(beforeCardId);
         if (targetIdx !== -1) {
-          newTaskIds.splice(targetIdx, 0, cardId);
+          ids.splice(targetIdx, 0, cardId);
         } else {
-          newTaskIds.push(cardId);
+          ids.push(cardId);
         }
       } else {
-        // Append cardId at the end
-        newTaskIds.push(cardId);
+        ids.push(cardId);
       }
 
-      // Update local board state
-      setBoards((prev) =>
-        prev.map((b) => (b.id === board.id ? { ...b, taskIds: newTaskIds } : b))
-      );
+      newTaskIds = ids;
+      return prevBoards.map((b) => (b.id === boardId ? { ...b, taskIds: newTaskIds } : b));
+    });
 
-      // Persist column change in task
-      await apiUpdate('tasks', cardId, { columnsID: targetColumnId }).catch((e) =>
-        setError(e.message)
-      );
+    // 2. Persist to API after local state is updated
+    // We use setTimeout(0) so the state updates above are enqueued first
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // Persist reordered taskIds in board
-      await apiUpdate('boards', board.id, { tasksID: newTaskIds }).catch((e) =>
-        setError(e.message)
-      );
+    if (boardId && newTaskIds) {
+      await Promise.all([
+        apiUpdate('tasks', cardId, { columnsID: targetColumnId }).catch((e) => setError(e.message)),
+        apiUpdate('boards', boardId, { tasksID: newTaskIds }).catch((e) => setError(e.message)),
+      ]);
+    } else {
+      // Fallback: just persist the column change even if board reorder failed
+      await apiUpdate('tasks', cardId, { columnsID: targetColumnId }).catch((e) => setError(e.message));
     }
   };
 
@@ -772,6 +875,7 @@ export const KanbanProvider = ({ children }) => {
         addCard,
         updateCard,
         deleteCard,
+        duplicateCard,
         moveCard,
         // Filters & nav
         searchQuery,

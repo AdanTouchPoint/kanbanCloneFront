@@ -44,6 +44,14 @@
   }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -506,6 +514,39 @@
 .modal-input:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.modal-sidebar-duplicate-btn {
+  padding: 12px;
+  background-color: var(--primary-light);
+  color: var(--primary);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.modal-sidebar-duplicate-btn:hover:not(:disabled) {
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.modal-sidebar-duplicate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-sidebar-duplicate-btn.success {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.25);
 }
 
 .modal-sidebar-delete-btn {
