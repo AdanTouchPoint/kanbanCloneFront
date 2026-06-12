@@ -32,11 +32,6 @@ export default function Dashboard() {
   });
   const subtaskRate = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
-  // Priority distribution
-  const highPriority = boardCards.filter(card => card.priority === 'high').length;
-  const mediumPriority = boardCards.filter(card => card.priority === 'medium').length;
-  const lowPriority = boardCards.filter(card => card.priority === 'low').length;
-
   const getPercent = (value) => {
     if (totalTasks === 0) return 0;
     return Math.round((value / totalTasks) * 100);
@@ -116,7 +111,7 @@ export default function Dashboard() {
       {/* Details Grid (Charts) */}
       <section className="charts-grid">
         {/* Column Distribution */}
-        <div className="chart-card">
+        <div className="chart-card" style={{ gridColumn: 'span 2' }}>
           <h2 className="chart-card-title">Distribución por Estado (Columnas)</h2>
           <div className="distribution-list">
             {boardColumns.map(col => {
@@ -140,54 +135,6 @@ export default function Dashboard() {
                 </div>
               );
             })}
-          </div>
-        </div>
-
-        {/* Priority Distribution */}
-        <div className="chart-card">
-          <h2 className="chart-card-title">Distribución de Prioridades</h2>
-          <div className="priority-list">
-            {/* High */}
-            <div className="priority-item">
-              <div className="priority-meta">
-                <span className="priority-label high">Alta</span>
-                <span>{highPriority} tareas ({getPercent(highPriority)}%)</span>
-              </div>
-              <div className="priority-bar-track">
-                <div 
-                  className="priority-bar-fill high" 
-                  style={{ width: `${getPercent(highPriority)}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Medium */}
-            <div className="priority-item">
-              <div className="priority-meta">
-                <span className="priority-label medium">Media</span>
-                <span>{mediumPriority} tareas ({getPercent(mediumPriority)}%)</span>
-              </div>
-              <div className="priority-bar-track">
-                <div 
-                  className="priority-bar-fill medium" 
-                  style={{ width: `${getPercent(mediumPriority)}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Low */}
-            <div className="priority-item">
-              <div className="priority-meta">
-                <span className="priority-label low">Baja</span>
-                <span>{lowPriority} tareas ({getPercent(lowPriority)}%)</span>
-              </div>
-              <div className="priority-bar-track">
-                <div 
-                  className="priority-bar-fill low" 
-                  style={{ width: `${getPercent(lowPriority)}%` }}
-                ></div>
-              </div>
-            </div>
           </div>
         </div>
       </section>

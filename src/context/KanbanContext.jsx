@@ -40,7 +40,6 @@ export const KanbanProvider = ({ children }) => {
 
   // ─── Filters & navigation ─────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState('all');
   const [activeView, setActiveView] = useState('board');
   const [activeCardId, setActiveCardId] = useState(null);
@@ -880,8 +879,6 @@ export const KanbanProvider = ({ children }) => {
         // Filters & nav
         searchQuery,
         setSearchQuery,
-        priorityFilter,
-        setPriorityFilter,
         colorFilter,
         setColorFilter,
         updateColorNameOnBoard,

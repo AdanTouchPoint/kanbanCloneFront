@@ -13,8 +13,6 @@ export default function Board() {
     cards,
     searchQuery,
     setSearchQuery,
-    priorityFilter,
-    setPriorityFilter,
     colorFilter,
     setColorFilter,
     addColumn,
@@ -217,19 +215,6 @@ export default function Board() {
             />
           </div>
 
-          {/* Priority filter */}
-          <select
-            className="filter-select"
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            title="Filtrar por prioridad"
-          >
-            <option value="all">Todas las Prioridades</option>
-            <option value="high">Prioridad Alta</option>
-            <option value="medium">Prioridad Media</option>
-            <option value="low">Prioridad Baja</option>
-          </select>
-
           {/* Add Column button (Only enabled for admin) */}
           {canModify && (
             <button
@@ -259,15 +244,11 @@ export default function Board() {
               card.title.toLowerCase().includes(searchLower) ||
               card.description.toLowerCase().includes(searchLower);
 
-            const matchesPriority =
-              priorityFilter === 'all' ||
-              card.priority === priorityFilter;
-
             const matchesColor =
               colorFilter === 'all' ||
               card.color === colorFilter;
 
-            return matchesColumn && matchesSearch && matchesPriority && matchesColor;
+            return matchesColumn && matchesSearch && matchesColor;
           });
 
           // Sort cards based on active board task order

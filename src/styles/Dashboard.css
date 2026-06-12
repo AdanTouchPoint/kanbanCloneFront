@@ -89,7 +89,7 @@
 /* Details Grid (Charts/Distribution) */
 .charts-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
@@ -173,54 +173,7 @@
 .dist-bar-fill.warning { background: linear-gradient(90deg, hsl(38, 92%, 50%) 0%, hsl(25, 92%, 48%) 100%); }
 .dist-bar-fill.success { background: linear-gradient(90deg, hsl(142, 71%, 45%) 0%, hsl(155, 71%, 40%) 100%); }
 
-/* Priority distribution progress */
-.priority-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  justify-content: center;
-  height: 100%;
-}
 
-.priority-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.priority-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.priority-label {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.priority-label.high { color: var(--danger); }
-.priority-label.medium { color: var(--warning); }
-.priority-label.low { color: var(--success); }
-
-.priority-bar-track {
-  width: 100%;
-  height: 8px;
-  background-color: var(--bg-tertiary);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.priority-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  transition: width var(--transition-slow) ease-out;
-}
-
-.priority-bar-fill.high { background-color: var(--danger); }
-.priority-bar-fill.medium { background-color: var(--warning); }
-.priority-bar-fill.low { background-color: var(--success); }
 
 @media (max-width: 900px) {
   .charts-grid {

@@ -12,7 +12,6 @@ function Column({ column, cards }) {
   // Quick card composer state
   const [isComposing, setIsComposing] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState('');
-  const [newCardPriority, setNewCardPriority] = useState('medium');
 
   const titleInputRef = useRef(null);
 
@@ -43,12 +42,10 @@ function Column({ column, cards }) {
     if (!newCardTitle.trim()) return;
 
     addCard(column.id, {
-      title: newCardTitle.trim(),
-      priority: newCardPriority
+      title: newCardTitle.trim()
     });
 
     setNewCardTitle('');
-    setNewCardPriority('medium');
     setIsComposing(false);
   };
 
@@ -123,16 +120,7 @@ function Column({ column, cards }) {
                 required
               />
             </div>
-            <div className="quick-card-options">
-              <select
-                className="quick-card-priority-select"
-                value={newCardPriority}
-                onChange={(e) => setNewCardPriority(e.target.value)}
-              >
-                <option value="low">Prioridad Baja</option>
-                <option value="medium">Prioridad Media</option>
-                <option value="high">Prioridad Alta</option>
-              </select>
+            <div className="quick-card-options" style={{ justifyContent: 'flex-end' }}>
               <div className="quick-card-buttons">
                 <button type="button" className="quick-btn-cancel" onClick={() => setIsComposing(false)}>
                   Cancelar

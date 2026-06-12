@@ -107,10 +107,7 @@ function Card({ card }) {
         />
       )}
       <div className="card-header-row">
-        <span className={`priority-badge ${card.priority}`}>
-          {card.priority === 'high' ? 'Alta' : card.priority === 'medium' ? 'Media' : 'Baja'}
-        </span>
-        <div className="card-actions-row">
+        <div className="card-actions-row" style={{ marginLeft: 'auto' }}>
           <button
             className="card-action-btn"
             onClick={handleDuplicate}

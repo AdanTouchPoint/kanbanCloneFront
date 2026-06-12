@@ -254,20 +254,6 @@ export default function CardModal() {
               </select>
             </div>
 
-            {/* Priority */}
-            <div className="modal-field-group">
-              <label className="modal-field-label">Prioridad</label>
-              <select
-                className="modal-select"
-                value={card.priority}
-                onChange={(e) => updateCard(card.id, { priority: e.target.value })}
-              >
-                <option value="low">Baja</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
-              </select>
-            </div>
-
             {/* Due Date */}
             <div className="modal-field-group">
               <label className="modal-field-label">Fecha de Vencimiento</label>

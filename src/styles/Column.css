@@ -152,17 +152,6 @@
   animation: fadeIn 0.2s ease-out;
 }
 
-.quick-card-priority-select {
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-tertiary);
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  cursor: pointer;
-}
-
 .quick-card-buttons {
   display: flex;
   gap: 6px;
