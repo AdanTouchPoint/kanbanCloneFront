@@ -635,3 +635,23 @@
   color: var(--danger);
   border-color: var(--danger);
 }
+
+/* Overdue subtask styles */
+.subtask-item-wrapper.overdue {
+  border-color: rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.02);
+}
+
+.subtask-item-wrapper.overdue:hover {
+  border-color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.subtask-detail-field.overdue {
+  color: var(--danger);
+}
+
+.subtask-inline-date.overdue {
+  color: var(--danger) !important;
+  font-weight: 600;
+}

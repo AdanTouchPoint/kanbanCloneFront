@@ -423,8 +423,11 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
     }
   };
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isOverdue = !sub.completed && sub.dueDate && sub.dueDate < todayStr;
+
   return (
-    <div className="subtask-item-wrapper">
+    <div className={`subtask-item-wrapper ${isOverdue ? 'overdue' : ''}`}>
       <div className="subtask-item">
         <input
           type="checkbox"
@@ -494,7 +497,7 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
             ))}
           </select>
         </div>
-        <div className="subtask-detail-field">
+        <div className={`subtask-detail-field ${isOverdue ? 'overdue' : ''}`}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
@@ -503,10 +506,10 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
           </svg>
           <input
             type="date"
-            className="subtask-inline-date"
+            className={`subtask-inline-date ${isOverdue ? 'overdue' : ''}`}
             value={sub.dueDate || ''}
             onChange={(e) => updateSubtask(cardId, sub.id, { dueDate: e.target.value })}
-            title="Fecha límite de la subtarea"
+            title={isOverdue ? "¡Subtarea vencida!" : "Fecha límite de la subtarea"}
           />
         </div>
       </div>

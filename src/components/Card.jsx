@@ -20,6 +20,11 @@ function Card({ card }) {
     return card.dueDate < todayStr;
   };
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const overdueSubtasksCount = card.columnId === 'done' ? 0 : card.subtasks.filter(
+    sub => !sub.completed && sub.dueDate && sub.dueDate < todayStr
+  ).length;
+
   const handleDragStart = (e) => {
     e.dataTransfer.setData('text/plain', card.id);
     // Use timeout to delay style change so the dragged ghost image looks normal
@@ -154,6 +159,16 @@ function Card({ card }) {
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
+          {overdueSubtasksCount > 0 && (
+            <div className="card-subtasks-overdue-warning" title={`${overdueSubtasksCount} subtareas vencidas`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{overdueSubtasksCount} subtarea{overdueSubtasksCount > 1 ? 's' : ''} vencida{overdueSubtasksCount > 1 ? 's' : ''}</span>
+            </div>
+          )}
         </div>
       )}
     </div>
