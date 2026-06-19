@@ -444,6 +444,7 @@ export const KanbanProvider = ({ children }) => {
       columnId,          // override with the known value
       assignee: user.name || '',
       subtasks: [],
+      isDraft: cardData.isDraft || false,
     };
 
     // 1. Update local state IMMEDIATELY (optimistic) — card appears right away
@@ -497,7 +498,8 @@ export const KanbanProvider = ({ children }) => {
         }),
         due: mergedCard.dueDate || null,
         columnsID: mergedCard.columnId,
-        autorID: mergedCard.assigneeId || user.id,
+        autorID: mergedCard.autorId || user.id,
+        membersID: mergedCard.assigneeId || null,
       });
     } catch (err) {
       console.error('[updateCard]', err);

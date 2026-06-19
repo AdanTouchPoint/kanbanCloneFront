@@ -48,6 +48,7 @@ export default function CardModal() {
   const [newSubtaskDate, setNewSubtaskDate] = useState('');
   const [newComment, setNewComment] = useState('');
   const [localColorName, setLocalColorName] = useState('');
+  const [titleError, setTitleError] = useState(false);
 
   // Sync local state when modal opens or card updates from outside
   useEffect(() => {
@@ -55,21 +56,66 @@ export default function CardModal() {
       setLocalTitle(card.title);
       setLocalDesc(card.description || '');
       setLocalColorName(card.colorName || '');
+      setTitleError(false);
     }
   }, [activeCardId, card?.id, card?.color, card?.colorName]);
 
   if (!card) return null;
 
   const handleClose = () => {
+    if (card.isDraft) {
+      deleteCard(card.id);
+    } else {
+      // Salvaguarda: guardar cualquier cambio local que esté pendiente al cerrar
+      const trimmed = localTitle.trim();
+      const updates = {};
+      if (trimmed && trimmed !== card.title) {
+        updates.title = trimmed;
+      }
+      if (localDesc !== card.description) {
+        updates.description = localDesc;
+      }
+      if (Object.keys(updates).length > 0) {
+        updateCard(card.id, updates);
+      }
+    }
+    setActiveCardId(null);
+  };
+
+  const handleCancel = () => {
+    if (card.isDraft) {
+      deleteCard(card.id);
+    }
+    setActiveCardId(null);
+  };
+
+  const handleSave = () => {
+    const trimmed = localTitle.trim();
+    if (!trimmed) {
+      setTitleError(true);
+      return;
+    }
+    setTitleError(false);
+    const updates = { isDraft: false };
+    if (trimmed !== card.title) {
+      updates.title = trimmed;
+    }
+    if (localDesc !== card.description) {
+      updates.description = localDesc;
+    }
+    updateCard(card.id, updates);
     setActiveCardId(null);
   };
 
   const handleTitleBlur = () => {
     const trimmed = localTitle.trim();
-    if (trimmed && trimmed !== card.title) {
-      updateCard(card.id, { title: trimmed });
+    if (trimmed) {
+      setTitleError(false);
+      if (trimmed !== card.title) {
+        updateCard(card.id, { title: trimmed });
+      }
     } else {
-      setLocalTitle(card.title);
+      setTitleError(true);
     }
   };
 
@@ -140,12 +186,13 @@ export default function CardModal() {
             </svg>
             <input
               type="text"
-              className="modal-title-input"
+              className={`modal-title-input ${titleError ? 'error' : ''}`}
               value={localTitle}
               onChange={(e) => setLocalTitle(e.target.value)}
               onBlur={handleTitleBlur}
               onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
               title="Haz clic para editar el título"
+              placeholder="El título no puede estar vacío"
             />
           </div>
           <button className="modal-close-btn" onClick={handleClose} title="Cerrar modal">
@@ -377,6 +424,22 @@ export default function CardModal() {
             </button>
           </div>
         </div>
+
+        {/* Modal Footer */}
+        <footer className="modal-footer">
+          {titleError && <span className="modal-error-message" style={{ color: 'var(--danger)', marginRight: 'auto', fontSize: '13px', display: 'flex', alignItems: 'center' }}>⚠️ El título es requerido</span>}
+          <button className="modal-cancel-btn" onClick={handleCancel}>
+            Cancelar
+          </button>
+          <button 
+            className="modal-save-btn" 
+            onClick={handleSave}
+            disabled={!localTitle.trim()}
+            style={!localTitle.trim() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          >
+            Guardar Cambios
+          </button>
+        </footer>
       </div>
     </div>
   );

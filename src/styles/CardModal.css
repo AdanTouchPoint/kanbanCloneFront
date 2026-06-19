@@ -99,7 +99,7 @@
   gap: 28px;
   border-right: 1px solid var(--border-color);
   overflow-y: auto;
-  max-height: calc(85vh - 73px);
+  max-height: calc(85vh - 140px);
 }
 
 .modal-sidebar-col {
@@ -109,7 +109,7 @@
   gap: 24px;
   background-color: rgba(255, 255, 255, 0.01);
   overflow-y: auto;
-  max-height: calc(85vh - 73px);
+  max-height: calc(85vh - 140px);
 }
 
 /* Form Controls in Modal */
@@ -142,6 +142,11 @@
   border-color: var(--primary);
   background-color: var(--bg-tertiary);
   outline: none;
+}
+
+.modal-title-input.error {
+  border-color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.05);
 }
 
 .modal-desc-textarea {
@@ -654,4 +659,47 @@
 .subtask-inline-date.overdue {
   color: var(--danger) !important;
   font-weight: 600;
+}
+
+/* Modal Footer Styles */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
+}
+
+.modal-save-btn {
+  padding: 10px 20px;
+  background-color: var(--primary);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.modal-save-btn:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.modal-cancel-btn {
+  padding: 10px 20px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.modal-cancel-btn:hover {
+  border-color: var(--text-secondary);
+  background-color: var(--bg-primary);
 }

@@ -75,6 +75,14 @@ export const transformTask = (doc) => {
   const extras = parseTaskExtras(doc.state);
   const authorName =
     doc.autorID && typeof doc.autorID === 'object' ? doc.autorID.name || '' : '';
+  const authorId =
+    doc.autorID && (typeof doc.autorID === 'object' ? doc.autorID.id : doc.autorID);
+
+  const assigneeId =
+    doc.membersID && (typeof doc.membersID === 'object' ? doc.membersID.id || doc.membersID._id : doc.membersID);
+  const assigneeName =
+    doc.membersID && typeof doc.membersID === 'object' ? doc.membersID.name || doc.membersID.email || '' : '';
+
   return {
     id: doc.id,
     columnId:
@@ -83,7 +91,9 @@ export const transformTask = (doc) => {
     description: extras.description || '',
     priority: extras.priority || 'medium',
     dueDate: doc.due ? doc.due.split('T')[0] : '',
-    assignee: authorName,
+    assignee: assigneeName || authorName || '',
+    assigneeId: assigneeId || '',
+    autorId: authorId || '',
     subtasks: [],         // populated later from checklists
     comments: extras.comments || [],
     checklistIds: (doc.checkListsID || []).map((c) =>

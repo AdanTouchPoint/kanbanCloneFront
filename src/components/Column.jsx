@@ -4,14 +4,10 @@ import Card from './Card';
 import '../styles/Column.css';
 
 function Column({ column, cards }) {
-  const { user, renameColumn, deleteColumn, addCard, moveCard } = useKanban();
+  const { user, renameColumn, deleteColumn, addCard, moveCard, setActiveCardId } = useKanban();
   const [title, setTitle] = useState(column.title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-
-  // Quick card composer state
-  const [isComposing, setIsComposing] = useState(false);
-  const [newCardTitle, setNewCardTitle] = useState('');
 
   const titleInputRef = useRef(null);
 
@@ -37,16 +33,15 @@ function Column({ column, cards }) {
     }
   };
 
-  const handleComposeSubmit = (e) => {
-    e.preventDefault();
-    if (!newCardTitle.trim()) return;
-
-    addCard(column.id, {
-      title: newCardTitle.trim()
-    });
-
-    setNewCardTitle('');
-    setIsComposing(false);
+  const handleAddNewCard = async () => {
+    try {
+      const newCard = await addCard(column.id, { title: 'Nueva Tarea', isDraft: true });
+      if (newCard && newCard.id) {
+        setActiveCardId(newCard.id);
+      }
+    } catch (err) {
+      console.error('Error al agregar nueva tarea:', err);
+    }
   };
 
   // Drag and Drop handlers
@@ -108,38 +103,13 @@ function Column({ column, cards }) {
       </div>
 
       <div className="quick-card-composer">
-        {isComposing ? (
-          <form className="quick-card-form" onSubmit={handleComposeSubmit}>
-            <div className="quick-card-input-row">
-              <input
-                type="text"
-                placeholder="Nombre de la tarea..."
-                value={newCardTitle}
-                onChange={(e) => setNewCardTitle(e.target.value)}
-                autoFocus
-                required
-              />
-            </div>
-            <div className="quick-card-options" style={{ justifyContent: 'flex-end' }}>
-              <div className="quick-card-buttons">
-                <button type="button" className="quick-btn-cancel" onClick={() => setIsComposing(false)}>
-                  Cancelar
-                </button>
-                <button type="submit" className="quick-btn-add">
-                  Añadir
-                </button>
-              </div>
-            </div>
-          </form>
-        ) : (
-          <button className="composer-toggle-btn" onClick={() => setIsComposing(true)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>AñadirTarea</span>
-          </button>
-        )}
+        <button className="composer-toggle-btn" onClick={handleAddNewCard}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>Añadir Tarea</span>
+        </button>
       </div>
     </div>
   );
