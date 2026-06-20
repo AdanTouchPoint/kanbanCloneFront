@@ -40,14 +40,21 @@ export default function CardModal() {
     (u) => activeBoard?.memberIds?.includes(u.id) || u.id === activeBoard?.authorId
   );
 
-  // Local state to avoid input lag on fast typings
+  // Local state to avoid input lag on fast typings and allow discard changes
   const [localTitle, setLocalTitle] = useState('');
   const [localDesc, setLocalDesc] = useState('');
+  const [localColorName, setLocalColorName] = useState('');
+  const [localColumnId, setLocalColumnId] = useState('');
+  const [localDueDate, setLocalDueDate] = useState('');
+  const [localAssigneeId, setLocalAssigneeId] = useState('');
+  const [localColor, setLocalColor] = useState(null);
+  const [localSubtasks, setLocalSubtasks] = useState([]);
+  const [subtasksToDelete, setSubtasksToDelete] = useState([]);
+
   const [newSubtask, setNewSubtask] = useState('');
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState('');
   const [newSubtaskDate, setNewSubtaskDate] = useState('');
   const [newComment, setNewComment] = useState('');
-  const [localColorName, setLocalColorName] = useState('');
   const [titleError, setTitleError] = useState(false);
 
   // Sync local state when modal opens or card updates from outside
@@ -56,28 +63,21 @@ export default function CardModal() {
       setLocalTitle(card.title);
       setLocalDesc(card.description || '');
       setLocalColorName(card.colorName || '');
+      setLocalColumnId(card.columnId || '');
+      setLocalDueDate(card.dueDate || '');
+      setLocalAssigneeId(card.assigneeId || '');
+      setLocalColor(card.color || null);
+      setLocalSubtasks(card.subtasks ? [...card.subtasks] : []);
+      setSubtasksToDelete([]);
       setTitleError(false);
     }
-  }, [activeCardId, card?.id, card?.color, card?.colorName]);
+  }, [activeCardId, card?.id]);
 
   if (!card) return null;
 
   const handleClose = () => {
     if (card.isDraft) {
       deleteCard(card.id);
-    } else {
-      // Salvaguarda: guardar cualquier cambio local que esté pendiente al cerrar
-      const trimmed = localTitle.trim();
-      const updates = {};
-      if (trimmed && trimmed !== card.title) {
-        updates.title = trimmed;
-      }
-      if (localDesc !== card.description) {
-        updates.description = localDesc;
-      }
-      if (Object.keys(updates).length > 0) {
-        updateCard(card.id, updates);
-      }
     }
     setActiveCardId(null);
   };
@@ -89,46 +89,114 @@ export default function CardModal() {
     setActiveCardId(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = localTitle.trim();
     if (!trimmed) {
       setTitleError(true);
       return;
     }
     setTitleError(false);
-    const updates = { isDraft: false };
-    if (trimmed !== card.title) {
-      updates.title = trimmed;
-    }
-    if (localDesc !== card.description) {
-      updates.description = localDesc;
-    }
-    updateCard(card.id, updates);
-    setActiveCardId(null);
-  };
 
-  const handleTitleBlur = () => {
-    const trimmed = localTitle.trim();
-    if (trimmed) {
-      setTitleError(false);
-      if (trimmed !== card.title) {
-        updateCard(card.id, { title: trimmed });
+    try {
+      // 1. Procesar eliminaciones de subtareas
+      for (const subId of subtasksToDelete) {
+        await deleteSubtask(card.id, subId);
       }
-    } else {
-      setTitleError(true);
+
+      // 2. Procesar adiciones y actualizaciones de subtareas
+      for (const sub of localSubtasks) {
+        if (sub.isNew) {
+          await addSubtask(card.id, sub.title, sub.memberIds?.[0] || '', sub.dueDate);
+        } else {
+          const original = card.subtasks.find(s => s.id === sub.id);
+          if (original) {
+            const hasChanged = original.title !== sub.title ||
+                               original.completed !== sub.completed ||
+                               original.dueDate !== sub.dueDate ||
+                               JSON.stringify(original.memberIds) !== JSON.stringify(sub.memberIds);
+            if (hasChanged) {
+              await updateSubtask(card.id, sub.id, {
+                title: sub.title,
+                completed: sub.completed,
+                dueDate: sub.dueDate,
+                assigneeId: sub.memberIds?.[0] || '',
+              });
+            }
+          }
+        }
+      }
+
+      // 3. Guardar cambios en la tarea principal
+      const updates = {
+        title: trimmed,
+        description: localDesc,
+        columnId: localColumnId,
+        dueDate: localDueDate,
+        assigneeId: localAssigneeId,
+        color: localColor,
+        colorName: localColorName,
+        isDraft: false,
+      };
+
+      await updateCard(card.id, updates);
+
+      // Si cambió el nombre del color, actualizarlo para todo el tablero
+      if (localColor && localColorName !== card.colorName) {
+        await updateColorNameOnBoard(localColor, localColorName.trim());
+      }
+
+      setActiveCardId(null);
+    } catch (err) {
+      console.error('Error al guardar cambios de la tarea:', err);
     }
   };
 
-  const handleDescBlur = () => {
-    if (localDesc !== card.description) {
-      updateCard(card.id, { description: localDesc });
+  const handleToggleSubtaskLocal = (cardId, subtaskId) => {
+    setLocalSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, completed: !s.completed } : s));
+  };
+
+  const handleUpdateSubtaskLocal = (cardId, subtaskId, updatedData) => {
+    setLocalSubtasks(prev => prev.map(s => {
+      if (s.id === subtaskId) {
+        let extra = {};
+        if (updatedData.assigneeId !== undefined) {
+          const matched = users.find(u => u.id === updatedData.assigneeId);
+          extra = {
+            assignee: matched ? matched.name : '',
+            memberIds: updatedData.assigneeId ? [updatedData.assigneeId] : []
+          };
+        }
+        return { ...s, ...updatedData, ...extra };
+      }
+      return s;
+    }));
+  };
+
+  const handleDeleteSubtaskLocal = (cardId, subtaskId) => {
+    if (typeof subtaskId === 'string' && !subtaskId.startsWith('temp-')) {
+      setSubtasksToDelete(prev => [...prev, subtaskId]);
     }
+    setLocalSubtasks(prev => prev.filter(s => s.id !== subtaskId));
+  };
+
+  const handleAddSubtaskLocal = (title, assigneeId, dueDate) => {
+    const matched = users.find(u => u.id === assigneeId);
+    const newSub = {
+      id: `temp-${Date.now()}`,
+      title,
+      completed: false,
+      assignee: matched ? matched.name : '',
+      dueDate,
+      memberIds: assigneeId ? [assigneeId] : [],
+      isNew: true
+    };
+    setLocalSubtasks(prev => [...prev, newSub]);
   };
 
   const handleAddSubtaskSubmit = (e) => {
     e.preventDefault();
     if (!newSubtask.trim()) return;
-    addSubtask(card.id, newSubtask.trim(), newSubtaskAssignee.trim(), newSubtaskDate);
+    handleAddSubtaskLocal(newSubtask.trim(), newSubtaskAssignee.trim(), newSubtaskDate);
     setNewSubtask('');
     setNewSubtaskAssignee('');
     setNewSubtaskDate('');
@@ -189,8 +257,6 @@ export default function CardModal() {
               className={`modal-title-input ${titleError ? 'error' : ''}`}
               value={localTitle}
               onChange={(e) => setLocalTitle(e.target.value)}
-              onBlur={handleTitleBlur}
-              onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
               title="Haz clic para editar el título"
               placeholder="El título no puede estar vacío"
             />
@@ -215,7 +281,6 @@ export default function CardModal() {
                 placeholder="Añade una descripción más detallada..."
                 value={localDesc}
                 onChange={(e) => setLocalDesc(e.target.value)}
-                onBlur={handleDescBlur}
               />
             </div>
 
@@ -223,15 +288,15 @@ export default function CardModal() {
             <div className="modal-field-group">
               <label className="modal-field-label">Subtareas</label>
               <div className="subtasks-list">
-                {card.subtasks.map((sub) => (
+                {localSubtasks.map((sub) => (
                   <SubtaskRow
                     key={sub.id}
                     sub={sub}
                     cardId={card.id}
                     boardMembers={boardMembers}
-                    toggleSubtask={toggleSubtask}
-                    deleteSubtask={deleteSubtask}
-                    updateSubtask={updateSubtask}
+                    toggleSubtask={handleToggleSubtaskLocal}
+                    deleteSubtask={handleDeleteSubtaskLocal}
+                    updateSubtask={handleUpdateSubtaskLocal}
                   />
                 ))}
               </div>
@@ -292,8 +357,8 @@ export default function CardModal() {
               <label className="modal-field-label">Estado (Columna)</label>
               <select
                 className="modal-select"
-                value={card.columnId}
-                onChange={(e) => updateCard(card.id, { columnId: e.target.value })}
+                value={localColumnId}
+                onChange={(e) => setLocalColumnId(e.target.value)}
               >
                 {columns.filter(col => col.boardId === activeBoardId).map(col => (
                   <option key={col.id} value={col.id}>{col.title}</option>
@@ -307,8 +372,8 @@ export default function CardModal() {
               <input
                 type="date"
                 className="modal-input"
-                value={card.dueDate || ''}
-                onChange={(e) => updateCard(card.id, { dueDate: e.target.value })}
+                value={localDueDate || ''}
+                onChange={(e) => setLocalDueDate(e.target.value)}
               />
             </div>
 
@@ -317,8 +382,8 @@ export default function CardModal() {
               <label className="modal-field-label">Asignado a</label>
               <select
                 className="modal-select"
-                value={card.assigneeId || ''}
-                onChange={(e) => updateCard(card.id, { assigneeId: e.target.value })}
+                value={localAssigneeId || ''}
+                onChange={(e) => setLocalAssigneeId(e.target.value)}
               >
                 <option value="">Sin asignar</option>
                 {boardMembers.map(u => (
@@ -337,32 +402,32 @@ export default function CardModal() {
                   <button
                     key={p.value}
                     type="button"
-                    className={`color-picker-dot ${card.color === p.value ? 'active' : ''}`}
+                    className={`color-picker-dot ${localColor === p.value ? 'active' : ''}`}
                     style={{ backgroundColor: p.value }}
                     onClick={() => {
-                      const newColor = card.color === p.value ? null : p.value;
-                      // Find if this color already has a name on this board's cards
+                      const newColor = localColor === p.value ? null : p.value;
                       const existingCardWithColor = cards.find(
                         (c) => c.color === newColor && c.colorName
                       );
                       const defaultName = existingCardWithColor ? existingCardWithColor.colorName : '';
-                      updateCard(card.id, { color: newColor, colorName: defaultName });
+                      setLocalColor(newColor);
+                      setLocalColorName(defaultName);
                     }}
                     title={p.label}
                   />
                 ))}
-                {card.color && (
+                {localColor && (
                   <button
                     type="button"
                     className="color-picker-clear-btn"
-                    onClick={() => updateCard(card.id, { color: null, colorName: '' })}
+                    onClick={() => { setLocalColor(null); setLocalColorName(''); }}
                     title="Quitar color"
                   >
                     ×
                   </button>
                 )}
               </div>
-              {card.color && (
+              {localColor && (
                 <div style={{ marginTop: '8px' }}>
                   <input
                     type="text"
@@ -370,11 +435,6 @@ export default function CardModal() {
                     placeholder="Nombrar este color..."
                     value={localColorName}
                     onChange={(e) => setLocalColorName(e.target.value)}
-                    onBlur={() => {
-                      if (localColorName !== card.colorName) {
-                        updateColorNameOnBoard(card.color, localColorName.trim());
-                      }
-                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.target.blur();
