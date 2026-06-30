@@ -6,10 +6,11 @@ import Sidebar from './components/Sidebar';
 import Board from './components/Board';
 import Dashboard from './components/Dashboard';
 import CardModal from './components/CardModal';
+import BoardModal from './components/BoardModal';
 import './App.css';
 
 function KanbanAppContent() {
-  const { user, activeView, activeCardId, loading, dataLoading, error, setError } = useKanban();
+  const { user, activeView, activeCardId, isAddingBoard, setIsAddingBoard, loading, dataLoading, error, setError } = useKanban();
 
   if (loading) {
     return <LoadingScreen />;
@@ -34,6 +35,7 @@ function KanbanAppContent() {
 
         {activeView === 'board' ? <Board /> : <Dashboard />}
         {activeCardId && <CardModal />}
+        <BoardModal isOpen={isAddingBoard} onClose={() => setIsAddingBoard(false)} />
       </main>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useKanban } from '../context/KanbanContext';
+import BoardModal from './BoardModal';
 import '../styles/Sidebar.css';
 
 export default function Sidebar() {
@@ -17,12 +18,11 @@ export default function Sidebar() {
     deleteBoard,
     renameBoard,
     canModifyBoard,
+    isAddingBoard,
+    setIsAddingBoard,
   } = useKanban();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
-
-  // Board composer & editor state
-  const [isAddingBoard, setIsAddingBoard] = useState(false);
   const [newBoardTitle, setNewBoardTitle] = useState('');
   const [newBoardDesc, setNewBoardDesc] = useState('');
   const [editingBoardId, setEditingBoardId] = useState(null);
@@ -32,14 +32,7 @@ export default function Sidebar() {
 
   const isAdmin = user.role === 'admin';
 
-  const handleCreateBoard = (e) => {
-    e.preventDefault();
-    if (!newBoardTitle.trim()) return;
-    addBoard(newBoardTitle.trim(), newBoardDesc.trim());
-    setNewBoardTitle('');
-    setNewBoardDesc('');
-    setIsAddingBoard(false);
-  };
+  // Start rename logic here
 
   const startRenameBoard = (id, currentTitle) => {
     setEditingBoardId(id);
@@ -105,33 +98,6 @@ export default function Sidebar() {
               </svg>
             </button>
           </div>
-
-          {isAddingBoard && (
-            <form className="board-composer" onSubmit={handleCreateBoard}>
-              <input
-                type="text"
-                placeholder="Nombre del tablero..."
-                value={newBoardTitle}
-                onChange={(e) => setNewBoardTitle(e.target.value)}
-                autoFocus
-                required
-              />
-              <textarea
-                placeholder="Descripción (opcional)..."
-                value={newBoardDesc}
-                onChange={(e) => setNewBoardDesc(e.target.value)}
-                rows="2"
-              />
-              <div className="board-composer-actions">
-                <button type="button" className="board-composer-btn-cancel" onClick={() => setIsAddingBoard(false)}>
-                  Cancelar
-                </button>
-                <button type="submit" className="board-composer-btn-add">
-                  Crear
-                </button>
-              </div>
-            </form>
-          )}
 
           <div className="boards-list">
             {myBoards.map(b => {

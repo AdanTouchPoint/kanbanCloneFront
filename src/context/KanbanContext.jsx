@@ -22,6 +22,8 @@ export const KanbanProvider = ({ children }) => {
   const [activeBoardId, setActiveBoardId] = useState(null);
   const [columns, setColumns] = useState([]);
   const [cards, setCards] = useState([]);
+  const [activeCardId, setActiveCardId] = useState(null);
+  const [isAddingBoard, setIsAddingBoard] = useState(false);
   const [users, setUsers] = useState([]); // all users for assignee dropdowns
 
   // Keep a ref to columns so closures like moveCard always read the latest value
@@ -42,7 +44,6 @@ export const KanbanProvider = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [colorFilter, setColorFilter] = useState('all');
   const [activeView, setActiveView] = useState('board');
-  const [activeCardId, setActiveCardId] = useState(null);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // Theme
@@ -241,7 +242,7 @@ export const KanbanProvider = ({ children }) => {
   // ═════════════════════════════════════════════════════════════════════════════
   // Board actions
   // ═════════════════════════════════════════════════════════════════════════════
-  const addBoard = async (title, description = '') => {
+  const addBoard = async ({ name, description = '', ownerId, membersID = [] }) => {
     const defaultColDefs = [
       { display: 'Backlog', color: 'purple' },
       { display: 'Por Hacer', color: 'blue' },
@@ -261,11 +262,13 @@ export const KanbanProvider = ({ children }) => {
 
     // 2. Create the board referencing those column IDs
     const boardDoc = await apiCreate('boards', {
-      name: title,
+      name: name,
+      description: description,
       autorID: user.id,
+      ownerId: ownerId,
       columnsID: createdCols.map((c) => c.doc.id),
       tasksID: [],
-      membersID: [],
+      membersID: membersID,
     });
 
     const newBoard = transformBoard(boardDoc);
@@ -902,6 +905,8 @@ export const KanbanProvider = ({ children }) => {
         setError,
         // Users list (for assignee pickers)
         users,
+        isAddingBoard,
+        setIsAddingBoard,
         fetchAllData,
         // Board Member & Role actions
         myBoards,
