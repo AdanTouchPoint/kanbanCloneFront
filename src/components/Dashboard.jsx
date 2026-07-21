@@ -3,10 +3,19 @@ import { useKanban } from '../context/KanbanContext';
 import '../styles/Dashboard.css';
 
 export default function Dashboard() {
-  const { cards, columns, activeBoardId } = useKanban();
+  const { cards, columns, activeBoardId, myBoards } = useKanban();
 
-  // Filter columns and cards to only include those belonging to the active board
-  const boardColumns = columns.filter(col => col.boardId === activeBoardId);
+  const activeBoard = myBoards.find(b => b.id === activeBoardId) || myBoards[0];
+  const colIds = activeBoard?.columnIds || [];
+
+  // Filter columns and cards to only include those belonging to the active board, sorted by column order
+  const boardColumns = [...columns.filter(col => col.boardId === activeBoardId)].sort((a, b) => {
+    const indexA = colIds.indexOf(a.id);
+    const indexB = colIds.indexOf(b.id);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
   const boardColumnIds = boardColumns.map(col => col.id);
   const boardCards = cards.filter(card => boardColumnIds.includes(card.columnId));
 

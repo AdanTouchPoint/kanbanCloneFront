@@ -73,7 +73,14 @@ export default function Board() {
   };
 
   const canModify = canModifyBoard(activeBoard?.id);
-  const boardColumns = columns.filter(col => col.boardId === activeBoardId).reverse();
+  const colIds = activeBoard?.columnIds || [];
+  const boardColumns = [...columns.filter(col => col.boardId === activeBoardId)].sort((a, b) => {
+    const indexA = colIds.indexOf(a.id);
+    const indexB = colIds.indexOf(b.id);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
 
   const [showMemberManager, setShowMemberManager] = useState(false);
   const [selectedUserIdToAdd, setSelectedUserIdToAdd] = useState('');

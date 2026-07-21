@@ -419,6 +419,40 @@ export const KanbanProvider = ({ children }) => {
     return true;
   };
 
+  const moveColumn = async (columnId, targetColumnId) => {
+    if (!canModifyBoard()) return false;
+    let boardId = null;
+    let newColIds = null;
+
+    setBoards((prevBoards) => {
+      const board = prevBoards.find((b) => b.id === activeBoardId);
+      if (!board) return prevBoards;
+
+      boardId = board.id;
+
+      let ids = board.columnIds.filter((id) => id !== columnId);
+      const targetIdx = board.columnIds.indexOf(targetColumnId);
+      if (targetIdx !== -1) {
+        const insertIdx = ids.indexOf(targetColumnId);
+        if (insertIdx !== -1) {
+          ids.splice(insertIdx, 0, columnId);
+        } else {
+          ids.push(columnId);
+        }
+      } else {
+        ids.push(columnId);
+      }
+
+      newColIds = ids;
+      return prevBoards.map((b) => (b.id === boardId ? { ...b, columnIds: newColIds } : b));
+    });
+
+    if (boardId && newColIds) {
+      await apiUpdate('boards', boardId, { columnsID: newColIds }).catch((e) => setError(e.message));
+    }
+    return true;
+  };
+
   // ═════════════════════════════════════════════════════════════════════════════
   // Card (task) actions
   // ═════════════════════════════════════════════════════════════════════════════
@@ -874,6 +908,7 @@ export const KanbanProvider = ({ children }) => {
         addColumn,
         deleteColumn,
         renameColumn,
+        moveColumn,
         // Cards
         cards,
         addCard,

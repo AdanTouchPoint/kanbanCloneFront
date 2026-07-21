@@ -3,7 +3,7 @@ import { useKanban } from '../context/KanbanContext';
 import '../styles/Card.css';
 
 function Card({ card }) {
-  const { deleteCard, setActiveCardId, moveCard, duplicateCard } = useKanban();
+  const { deleteCard, setActiveCardId, moveCard, duplicateCard, moveColumn } = useKanban();
   const [isDuplicating, setIsDuplicating] = React.useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isDragOverCard, setIsDragOverCard] = useState(false);
@@ -26,6 +26,7 @@ function Card({ card }) {
   ).length;
 
   const handleDragStart = (e) => {
+    e.stopPropagation();
     e.dataTransfer.setData('text/plain', card.id);
     // Use timeout to delay style change so the dragged ghost image looks normal
     setTimeout(() => {
@@ -52,8 +53,13 @@ function Card({ card }) {
     e.stopPropagation();
     setIsDragOverCard(false);
     const draggedCardId = e.dataTransfer.getData('text/plain');
+    const dragColId = e.dataTransfer.getData('text/column');
     if (draggedCardId && draggedCardId !== card.id) {
       moveCard(draggedCardId, card.columnId, card.id);
+    } else if (dragColId) {
+      if (dragColId !== card.columnId) {
+        moveColumn(dragColId, card.columnId);
+      }
     }
   };
 
