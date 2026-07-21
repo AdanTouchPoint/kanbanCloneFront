@@ -62,6 +62,7 @@ export const transformBoard = (doc) => ({
   taskIds: (doc.tasksID || []).map((t) => (typeof t === 'string' ? t : t.id)),
   authorId: doc.autorID && (typeof doc.autorID === 'string' ? doc.autorID : doc.autorID.id),
   memberIds: (doc.membersID || []).map((m) => (typeof m === 'string' ? m : m.id)),
+  ownerId: doc.ownerId && (typeof doc.ownerId === 'string' ? doc.ownerId : doc.ownerId.id),
 });
 
 export const transformColumn = (doc) => ({

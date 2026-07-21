@@ -24,6 +24,7 @@ export const KanbanProvider = ({ children }) => {
   const [cards, setCards] = useState([]);
   const [activeCardId, setActiveCardId] = useState(null);
   const [isAddingBoard, setIsAddingBoard] = useState(false);
+  const [boardToEdit, setBoardToEdit] = useState(null);
   const [users, setUsers] = useState([]); // all users for assignee dropdowns
 
   // Keep a ref to columns so closures like moveCard always read the latest value
@@ -328,6 +329,44 @@ export const KanbanProvider = ({ children }) => {
     setBoards((prev) => prev.map((b) => (b.id === boardId ? { ...b, title: newTitle } : b)));
     await apiUpdate('boards', boardId, { name: newTitle }).catch((e) => setError(e.message));
     return true;
+  };
+
+  const updateBoard = async (boardId, { name, description = '', ownerId, membersID = [] }) => {
+    if (!canModifyBoard(boardId)) return false;
+    
+    // Local optimistic update
+    setBoards((prev) =>
+      prev.map((b) =>
+        b.id === boardId
+          ? {
+              ...b,
+              title: name,
+              description: description,
+              ownerId: ownerId,
+              memberIds: membersID,
+            }
+          : b
+      )
+    );
+
+    try {
+      const updatedDoc = await apiUpdate('boards', boardId, {
+        name,
+        description,
+        ownerId,
+        membersID,
+      });
+      const transformed = transformBoard(updatedDoc);
+      setBoards((prev) =>
+        prev.map((b) => (b.id === boardId ? transformed : b))
+      );
+      return true;
+    } catch (e) {
+      console.error('[updateBoard]', e);
+      setError(e.message);
+      fetchAllData();
+      return false;
+    }
   };
 
   // ═════════════════════════════════════════════════════════════════════════════
@@ -903,6 +942,9 @@ export const KanbanProvider = ({ children }) => {
         addBoard,
         deleteBoard,
         renameBoard,
+        updateBoard,
+        boardToEdit,
+        setBoardToEdit,
         // Columns
         columns,
         addColumn,

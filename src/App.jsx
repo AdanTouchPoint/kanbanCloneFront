@@ -10,7 +10,19 @@ import BoardModal from './components/BoardModal';
 import './App.css';
 
 function KanbanAppContent() {
-  const { user, activeView, activeCardId, isAddingBoard, setIsAddingBoard, loading, dataLoading, error, setError } = useKanban();
+  const {
+    user,
+    activeView,
+    activeCardId,
+    isAddingBoard,
+    setIsAddingBoard,
+    boardToEdit,
+    setBoardToEdit,
+    loading,
+    dataLoading,
+    error,
+    setError
+  } = useKanban();
 
   if (loading) {
     return <LoadingScreen />;
@@ -35,7 +47,14 @@ function KanbanAppContent() {
 
         {activeView === 'board' ? <Board /> : <Dashboard />}
         {activeCardId && <CardModal />}
-        <BoardModal isOpen={isAddingBoard} onClose={() => setIsAddingBoard(false)} />
+        <BoardModal
+          isOpen={isAddingBoard || !!boardToEdit}
+          onClose={() => {
+            setIsAddingBoard(false);
+            setBoardToEdit(null);
+          }}
+          boardToEdit={boardToEdit}
+        />
       </main>
     </div>
   );

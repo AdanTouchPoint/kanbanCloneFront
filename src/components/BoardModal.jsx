@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useKanban } from '../context/KanbanContext';
 import '../styles/BoardModal.css';
 
-export default function BoardModal({ isOpen, onClose }) {
-  const { users, addBoard } = useKanban();
+export default function BoardModal({ isOpen, onClose, boardToEdit }) {
+  const { users, addBoard, updateBoard } = useKanban();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -20,6 +20,24 @@ export default function BoardModal({ isOpen, onClose }) {
   // Focus tracking for dropdowns
   const [isOwnerSearchFocused, setIsOwnerSearchFocused] = useState(false);
   const [isMemberSearchFocused, setIsMemberSearchFocused] = useState(false);
+
+  useEffect(() => {
+    if (boardToEdit) {
+      setTitle(boardToEdit.title || '');
+      setDescription(boardToEdit.description || '');
+      setOwnerId(boardToEdit.ownerId || '');
+      setSelectedMembers(boardToEdit.memberIds || []);
+    } else {
+      setTitle('');
+      setDescription('');
+      setOwnerId('');
+      setSelectedMembers([]);
+    }
+    setTitleError(false);
+    setOwnerError(false);
+    setOwnerSearch('');
+    setMemberSearch('');
+  }, [boardToEdit, isOpen]);
 
   if (!isOpen) return null;
 
@@ -52,15 +70,24 @@ export default function BoardModal({ isOpen, onClose }) {
     setOwnerError(false);
 
     try {
-      await addBoard({
-        name: trimmedTitle,
-        description: description,
-        ownerId: ownerId,
-        membersID: selectedMembers
-      });
+      if (boardToEdit) {
+        await updateBoard(boardToEdit.id, {
+          name: trimmedTitle,
+          description: description,
+          ownerId: ownerId,
+          membersID: selectedMembers
+        });
+      } else {
+        await addBoard({
+          name: trimmedTitle,
+          description: description,
+          ownerId: ownerId,
+          membersID: selectedMembers
+        });
+      }
       handleClose();
     } catch (err) {
-      console.error('Error al crear el tablero:', err);
+      console.error(boardToEdit ? 'Error al actualizar el tablero:' : 'Error al crear el tablero:', err);
     }
   };
 
@@ -85,7 +112,7 @@ export default function BoardModal({ isOpen, onClose }) {
     <div className="board-modal-overlay" onClick={handleClose}>
       <div className="board-modal-content" onClick={(e) => e.stopPropagation()}>
         <header className="board-modal-header">
-          <h2 className="board-modal-title">Crear Nuevo Tablero</h2>
+          <h2 className="board-modal-title">{boardToEdit ? 'Editar Tablero' : 'Crear Nuevo Tablero'}</h2>
           <button className="board-modal-close" onClick={handleClose} title="Cerrar">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -231,7 +258,7 @@ export default function BoardModal({ isOpen, onClose }) {
             onClick={handleSave}
             disabled={!title.trim() || !ownerId}
           >
-            Crear Tablero
+            {boardToEdit ? 'Guardar Cambios' : 'Crear Tablero'}
           </button>
         </footer>
       </div>

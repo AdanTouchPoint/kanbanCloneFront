@@ -323,3 +323,33 @@
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
+
+.edit-board-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.edit-board-btn:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.edit-board-btn svg {
+  transition: transform var(--transition-fast);
+}
+
+.edit-board-btn:hover svg {
+  transform: rotate(15deg) scale(1.1);
+}
+
