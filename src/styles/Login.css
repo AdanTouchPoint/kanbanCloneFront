@@ -46,7 +46,7 @@
 .blob-3 {
   width: 350px;
   height: 350px;
-  background: radial-gradient(circle, hsl(var(--danger-hsl)) 0%, rgba(244, 63, 94, 0) 70%);
+  background: radial-gradient(circle, #f23670 0%, #a00c46 100% 70%);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -54,21 +54,45 @@
 }
 
 @keyframes moveBlob1 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(100px, 80px) scale(1.1); }
-  100% { transform: translate(-50px, 150px) scale(0.9); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(100px, 80px) scale(1.1);
+  }
+
+  100% {
+    transform: translate(-50px, 150px) scale(0.9);
+  }
 }
 
 @keyframes moveBlob2 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-120px, -100px) scale(0.9); }
-  100% { transform: translate(60px, 40px) scale(1.1); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(-120px, -100px) scale(0.9);
+  }
+
+  100% {
+    transform: translate(60px, 40px) scale(1.1);
+  }
 }
 
 @keyframes moveBlob3 {
-  0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
-  50% { transform: translate(-40%, -60%) rotate(180deg) scale(1.2); }
-  100% { transform: translate(-60%, -40%) rotate(360deg) scale(0.85); }
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: translate(-40%, -60%) rotate(180deg) scale(1.2);
+  }
+
+  100% {
+    transform: translate(-60%, -40%) rotate(360deg) scale(0.85);
+  }
 }
 
 .login-card {
@@ -78,7 +102,7 @@
   max-width: 440px;
   padding: 40px;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  box-shadow: #f23670 0%, #a00c46 100%;
   text-align: center;
   margin: 20px;
   animation: cardEntrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -89,6 +113,7 @@
     opacity: 0;
     transform: translateY(30px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -147,7 +172,8 @@
   align-items: center;
 }
 
-.input-container input, .input-container select {
+.input-container input,
+.input-container select {
   width: 100%;
   padding: 12px 16px;
   border-radius: var(--radius-md);
@@ -158,7 +184,8 @@
   transition: all var(--transition-fast);
 }
 
-.input-container input:focus, .input-container select:focus {
+.input-container input:focus,
+.input-container select:focus {
   outline: none;
   border-color: var(--primary);
   background-color: var(--bg-secondary);
@@ -183,7 +210,7 @@
   margin-top: 10px;
   padding: 14px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #f23670 0%, #a00c46 100%);
   color: #ffffff;
   font-weight: 600;
   font-size: 16px;
@@ -303,7 +330,9 @@
 }
 
 @keyframes loginSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .login-submit-btn:disabled,
