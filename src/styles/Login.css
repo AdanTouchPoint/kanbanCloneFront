@@ -46,7 +46,7 @@
 .blob-3 {
   width: 350px;
   height: 350px;
-  background: radial-gradient(circle, #f23670 0%, #a00c46 100% 70%);
+  background: radial-gradient(circle, var(--danger) 0%, hsl(344, 84%, 32%) 100% 70%);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -102,7 +102,7 @@
   max-width: 440px;
   padding: 40px;
   border-radius: var(--radius-lg);
-  box-shadow: #f23670 0%, #a00c46 100%;
+  box-shadow: var(--danger) 0%, hsl(344, 84%, 32%) 100%;
   text-align: center;
   margin: 20px;
   animation: cardEntrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -210,7 +210,7 @@
   margin-top: 10px;
   padding: 14px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #f23670 0%, #a00c46 100%);
+  background: linear-gradient(135deg, var(--danger) 0%, hsl(344, 84%, 32%) 100%);
   color: #ffffff;
   font-weight: 600;
   font-size: 16px;

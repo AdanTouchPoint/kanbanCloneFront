@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { useKanban } from '../context/KanbanContext';
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Login.css';
 
 export default function Login() {
-  const { login } = useKanban();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,20 +22,6 @@ export default function Login() {
       await login(email, password);
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePresetClick = async (presetEmail, presetPassword) => {
-    setEmail(presetEmail);
-    setPassword(presetPassword);
-    setError('');
-    setIsLoading(true);
-    try {
-      await login(presetEmail, presetPassword);
-    } catch (err) {
-      setError(err.message || 'Error al iniciar sesión.');
     } finally {
       setIsLoading(false);
     }

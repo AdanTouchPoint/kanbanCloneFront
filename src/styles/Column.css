@@ -19,10 +19,10 @@
 }
 
 /* Color themed borders/accents */
-.column-container.color-purple { border-top: 4px solid hsl(270, 85%, 60%); }
-.column-container.color-blue { border-top: 4px solid hsl(210, 95%, 55%); }
-.column-container.color-warning { border-top: 4px solid hsl(38, 92%, 50%); }
-.column-container.color-success { border-top: 4px solid hsl(142, 71%, 45%); }
+.column-container.color-purple { border-top: 4px solid var(--column-purple); }
+.column-container.color-blue { border-top: 4px solid var(--column-blue); }
+.column-container.color-warning { border-top: 4px solid var(--column-warning); }
+.column-container.color-success { border-top: 4px solid var(--column-success); }
 
 .column-header {
   display: flex;

@@ -1,36 +1,19 @@
-import React, { useState } from 'react';
-import { useKanban } from '../context/KanbanContext';
-import BoardModal from './BoardModal';
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useBoards } from '../context/BoardContext';
+import { useUI } from '../context/UIContext';
 import '../styles/Sidebar.css';
 
 export default function Sidebar() {
-  const {
-    theme,
-    toggleTheme,
-    user,
-    logout,
-    activeView,
-    setActiveView,
-    myBoards,
-    activeBoardId,
-    setActiveBoardId,
-    addBoard,
-    deleteBoard,
-    renameBoard,
-    canModifyBoard,
-    isAddingBoard,
-    setIsAddingBoard,
-  } = useKanban();
+  const { user, logout } = useAuth();
+  const { myBoards, activeBoardId, setActiveBoardId, deleteBoard, renameBoard, canModifyBoard } = useBoards();
+  const { theme, toggleTheme, activeView, setActiveView, isAddingBoard, setIsAddingBoard } = useUI();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [newBoardTitle, setNewBoardTitle] = useState('');
-  const [newBoardDesc, setNewBoardDesc] = useState('');
   const [editingBoardId, setEditingBoardId] = useState(null);
   const [editingBoardTitle, setEditingBoardTitle] = useState('');
 
   if (!user) return null;
-
-  const isAdmin = user.role === 'admin';
 
   // Start rename logic here
 
@@ -55,9 +38,6 @@ export default function Sidebar() {
       setEditingBoardId(null);
     }
   };
-  console.log("🚀 ~ Sidebar ~ isAdmin:", isAdmin)
-  console.log("🚀 ~ Sidebar ~ user:", user)
-
   return (
     <aside className={`sidebar glass ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-top">

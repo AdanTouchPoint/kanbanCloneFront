@@ -1,38 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { useKanban } from '../context/KanbanContext';
+import { useState, useEffect } from 'react';
+import { useBoards } from '../context/BoardContext';
+import { useTasks } from '../context/TaskContext';
+import { useUI } from '../context/UIContext';
 import '../styles/CardModal.css';
 
 const COLOR_PRESETS = [
-  { value: '#ef4444', label: 'Rojo' },
-  { value: '#f97316', label: 'Naranja' },
-  { value: '#eab308', label: 'Amarillo' },
-  { value: '#22c55e', label: 'Verde' },
-  { value: '#3b82f6', label: 'Azul' },
-  { value: '#a855f7', label: 'Morado' },
+  { value: '#DF1449', label: 'Rojo' },
+  { value: '#F97316', label: 'Naranja' },
+  { value: '#EAB308', label: 'Amarillo' },
+  { value: '#10B981', label: 'Verde' },
+  { value: '#14B8A6', label: 'Teal' },
+  { value: '#0EA5E9', label: 'Cyan' },
 ];
 
 export default function CardModal() {
-  const {
-    activeCardId,
-    setActiveCardId,
-    cards,
-    columns,
-    activeBoardId,
-    updateCard,
-    deleteCard,
-    duplicateCard,
-    addSubtask,
-    updateSubtask,
-    toggleSubtask,
-    deleteSubtask,
-    addComment,
-    users,
-    myBoards,
-    updateColorNameOnBoard,
-  } = useKanban();
+  const { columns, activeBoardId, users, myBoards } = useBoards();
+  const { cards, updateCard, deleteCard, duplicateCard, addSubtask, updateSubtask, deleteSubtask, updateColorNameOnBoard } = useTasks();
+  const { activeCardId, setActiveCardId } = useUI();
 
-  const [duplicating, setDuplicating] = React.useState(false);
-  const [duplicateSuccess, setDuplicateSuccess] = React.useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [duplicateSuccess, setDuplicateSuccess] = useState(false);
 
   const card = cards.find(c => c.id === activeCardId);
   const activeBoard = myBoards.find((b) => b.id === activeBoardId);
@@ -54,11 +41,11 @@ export default function CardModal() {
   const [newSubtask, setNewSubtask] = useState('');
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState('');
   const [newSubtaskDate, setNewSubtaskDate] = useState('');
-  const [newComment, setNewComment] = useState('');
   const [titleError, setTitleError] = useState(false);
 
   // Sync local state when modal opens or card updates from outside
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (card) {
       setLocalTitle(card.title);
       setLocalDesc(card.description || '');
@@ -71,6 +58,8 @@ export default function CardModal() {
       setSubtasksToDelete([]);
       setTitleError(false);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCardId, card?.id]);
 
   if (!card) return null;
@@ -202,18 +191,8 @@ export default function CardModal() {
     setNewSubtaskDate('');
   };
 
-  const handleAddCommentSubmit = (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    addComment(card.id, newComment.trim());
-    setNewComment('');
-  };
-
   const handleDeleteCard = () => {
-    const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar la tarea "${card.title}"?`);
-    if (confirmDelete) {
-      deleteCard(card.id);
-    }
+    deleteCard(card.id);
   };
 
   const handleDuplicateCard = async () => {
@@ -225,20 +204,6 @@ export default function CardModal() {
       setTimeout(() => setDuplicateSuccess(false), 2000);
     } finally {
       setDuplicating(false);
-    }
-  };
-
-  const formatCommentDate = (dateStr) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (e) {
-      return dateStr;
     }
   };
 
@@ -345,8 +310,6 @@ export default function CardModal() {
                 </button>
               </form>
             </div>
-
-            {/* Activity & Comments */}
 
           </div>
 
@@ -510,7 +473,9 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
   const [localTitle, setLocalTitle] = useState(sub.title);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setLocalTitle(sub.title);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [sub.title]);
 
   const handleBlur = () => {

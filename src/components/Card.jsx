@@ -1,10 +1,15 @@
-import React, { useState, memo } from 'react';
-import { useKanban } from '../context/KanbanContext';
+import { useState, memo, useMemo } from 'react';
+import { useBoards } from '../context/BoardContext';
+import { useTasks } from '../context/TaskContext';
+import { useUI } from '../context/UIContext';
+import { isCompletedColumn } from '../utils/columnHelpers';
 import '../styles/Card.css';
 
 function Card({ card }) {
-  const { deleteCard, setActiveCardId, moveCard, duplicateCard, moveColumn } = useKanban();
-  const [isDuplicating, setIsDuplicating] = React.useState(false);
+  const { columns, moveColumn } = useBoards();
+  const { deleteCard, moveCard, duplicateCard } = useTasks();
+  const { setActiveCardId } = useUI();
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isDragOverCard, setIsDragOverCard] = useState(false);
 
@@ -13,15 +18,11 @@ function Card({ card }) {
   const completedSubtasks = card.subtasks.filter(sub => sub.completed).length;
   const progressPercent = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
 
-  // Overdue check
-  const isOverdue = () => {
-    if (!card.dueDate || card.columnId === 'done') return false;
-    const todayStr = new Date().toISOString().split('T')[0];
-    return card.dueDate < todayStr;
-  };
+  // Overdue check (uses the dynamic "completed" column detection)
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const isInCompletedColumn = isCompletedColumn(card.columnId, columns);
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const overdueSubtasksCount = card.columnId === 'done' ? 0 : card.subtasks.filter(
+  const overdueSubtasksCount = isInCompletedColumn ? 0 : card.subtasks.filter(
     sub => !sub.completed && sub.dueDate && sub.dueDate < todayStr
   ).length;
 
@@ -65,10 +66,7 @@ function Card({ card }) {
 
   const handleDelete = (e) => {
     e.stopPropagation(); // Prevent opening modal
-    const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar la tarea "${card.title}"?`);
-    if (confirmDelete) {
-      deleteCard(card.id);
-    }
+    deleteCard(card.id);
   };
 
   const handleDuplicate = async (e) => {
@@ -80,16 +78,6 @@ function Card({ card }) {
     } finally {
       setIsDuplicating(false);
     }
-  };
-
-  const getAssigneeInitials = (name) => {
-    if (!name || name === 'Sin Asignar') return '?';
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
   };
 
   return (

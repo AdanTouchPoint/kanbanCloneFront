@@ -1,23 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useKanban } from '../context/KanbanContext';
+import { useBoards } from '../context/BoardContext';
+import { useTasks } from '../context/TaskContext';
+import { useUI } from '../context/UIContext';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import Column from './Column';
 import '../styles/Board.css';
 
 export default function Board() {
-  const {
-    myBoards,
-    activeBoardId,
-    renameBoard,
-    columns,
-    cards,
-    searchQuery,
-    setSearchQuery,
-    colorFilter,
-    setColorFilter,
-    addColumn,
-    canModifyBoard,
-    setBoardToEdit,
-  } = useKanban();
+  const { myBoards, activeBoardId, renameBoard, columns, addColumn, canModifyBoard } = useBoards();
+  const { cards } = useTasks();
+  const { searchQuery, setSearchQuery, colorFilter, setColorFilter, setBoardToEdit } = useUI();
+  const debouncedSearch = useDebouncedValue(searchQuery, 200);
 
   const activeBoard = myBoards.find(b => b.id === activeBoardId) || myBoards[0];
 
@@ -26,9 +19,12 @@ export default function Board() {
   const [boardTitle, setBoardTitle] = useState('');
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (activeBoard) {
       setBoardTitle(activeBoard.title);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBoardId, activeBoard?.title]);
 
   // Column composer state
@@ -102,23 +98,12 @@ export default function Board() {
           {isEditingTitle && canModify ? (
             <input
               type="text"
+              className="board-title-input"
               value={boardTitle}
               onChange={(e) => setBoardTitle(e.target.value)}
               onBlur={handleTitleBlur}
               onKeyDown={handleTitleKeyDown}
               autoFocus
-              style={{
-                fontSize: '28px',
-                fontWeight: '700',
-                color: 'var(--text-primary)',
-                borderBottom: '2px solid var(--primary)',
-                padding: '0 4px',
-                letterSpacing: '-0.5px',
-                background: 'transparent',
-                outline: 'none',
-                width: 'fit-content',
-                marginBottom: '4px'
-              }}
             />
           ) : (
             <h1
@@ -130,18 +115,18 @@ export default function Board() {
             </h1>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
-            <span className="board-subtitle" style={{ margin: 0 }}>
+          <div className="board-subtitle-row">
+            <span className="board-subtitle">
               {activeBoard?.description || 'Organiza, prioriza y ejecuta tus tareas pendientes'}
             </span>
             {canModify && (
               <>
-                <span style={{ color: 'var(--text-secondary)' }}>•</span>
+                <span className="board-subtitle-divider">•</span>
                 <button
                   className="edit-board-btn"
                   onClick={() => setBoardToEdit(activeBoard)}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="edit-board-icon">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z" />
                   </svg>
@@ -191,7 +176,7 @@ export default function Board() {
           const filteredCards = cards.filter(card => {
             const matchesColumn = card.columnId === column.id;
 
-            const searchLower = searchQuery.toLowerCase();
+            const searchLower = debouncedSearch.toLowerCase();
             const matchesSearch =
               card.title.toLowerCase().includes(searchLower) ||
               card.description.toLowerCase().includes(searchLower);
@@ -233,21 +218,14 @@ export default function Board() {
             />
 
             <div>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Color de Tema</span>
+              <span className="color-picker-label">Color de Tema</span>
               <div className="color-select-grid">
                 {availableColors.map(color => (
                   <button
                     key={color}
                     type="button"
-                    className={`color-dot color-${color} ${columnColor === color ? 'selected' : ''}`}
+                    className={`color-dot color-${color} color-dot-${color} ${columnColor === color ? 'selected' : ''}`}
                     onClick={() => setColumnColor(color)}
-                    style={{
-                      backgroundColor:
-                        color === 'purple' ? 'hsl(270, 85%, 60%)' :
-                          color === 'blue' ? 'hsl(210, 95%, 55%)' :
-                            color === 'warning' ? 'hsl(38, 92%, 50%)' :
-                              'hsl(142, 71%, 45%)'
-                    }}
                     title={`Tema ${color}`}
                   />
                 ))}

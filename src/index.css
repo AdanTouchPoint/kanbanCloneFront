@@ -38,6 +38,15 @@
   --danger-hover: hsl(344, 84%, 40%);
   --danger-light: hsla(var(--danger-hsl), 0.12);
 
+  /* Accent (used by LoadingScreen radial decoration) */
+  --accent-hsl: 175, 100%, 37%;
+
+  /* Column color palette — desaturated, harmonious with the teal brand */
+  --column-purple: hsl(270, 70%, 55%);
+  --column-blue: hsl(200, 75%, 48%);
+  --column-warning: hsl(38, 82%, 48%);
+  --column-success: hsl(155, 55%, 42%);
+
   /* Border Radius */
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -82,6 +91,8 @@
   --success-light: hsla(var(--success-hsl), 0.2);
   --warning-light: hsla(var(--warning-hsl), 0.2);
   --danger-light: hsla(var(--danger-hsl), 0.2);
+
+  --accent-hsl: 175, 100%, 42%;
 }
 
 * {

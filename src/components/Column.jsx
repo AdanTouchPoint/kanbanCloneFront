@@ -1,10 +1,16 @@
-import React, { useState, useRef, memo } from 'react';
-import { useKanban } from '../context/KanbanContext';
+import { useState, useRef, memo } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useBoards } from '../context/BoardContext';
+import { useTasks } from '../context/TaskContext';
+import { useUI } from '../context/UIContext';
 import Card from './Card';
 import '../styles/Column.css';
 
 function Column({ column, cards }) {
-  const { user, renameColumn, deleteColumn, addCard, moveCard, setActiveCardId, moveColumn } = useKanban();
+  const { user } = useAuth();
+  const { renameColumn, deleteColumn, moveColumn } = useBoards();
+  const { addCard, moveCard } = useTasks();
+  const { setActiveCardId } = useUI();
   const [title, setTitle] = useState(column.title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -141,12 +147,7 @@ function Column({ column, cards }) {
           <div className="column-actions-menu">
             <button
               className="column-action-btn"
-              onClick={() => {
-                const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar la columna "${column.title}"?`);
-                if (confirmDelete) {
-                  deleteColumn(column.id);
-                }
-              }}
+              onClick={() => deleteColumn(column.id)}
               title="Eliminar columna"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

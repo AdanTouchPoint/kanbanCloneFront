@@ -1,32 +1,43 @@
-import React from 'react';
-import { useKanban } from '../context/KanbanContext';
+import { useMemo } from 'react';
+import { useBoards } from '../context/BoardContext';
+import { useTasks } from '../context/TaskContext';
+import { getCompletedColumn } from '../utils/columnHelpers';
 import '../styles/Dashboard.css';
 
 export default function Dashboard() {
-  const { cards, columns, activeBoardId, myBoards } = useKanban();
+  const { columns, activeBoardId, myBoards } = useBoards();
+  const { cards } = useTasks();
 
   const activeBoard = myBoards.find(b => b.id === activeBoardId) || myBoards[0];
-  const colIds = activeBoard?.columnIds || [];
+  const colIds = useMemo(() => activeBoard?.columnIds || [], [activeBoard]);
 
   // Filter columns and cards to only include those belonging to the active board, sorted by column order
-  const boardColumns = [...columns.filter(col => col.boardId === activeBoardId)].sort((a, b) => {
-    const indexA = colIds.indexOf(a.id);
-    const indexB = colIds.indexOf(b.id);
-    if (indexA === -1) return 1;
-    if (indexB === -1) return -1;
-    return indexA - indexB;
-  });
-  const boardColumnIds = boardColumns.map(col => col.id);
-  const boardCards = cards.filter(card => boardColumnIds.includes(card.columnId));
+  const boardColumns = useMemo(
+    () => [...columns.filter(col => col.boardId === activeBoardId)].sort((a, b) => {
+      const indexA = colIds.indexOf(a.id);
+      const indexB = colIds.indexOf(b.id);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    }),
+    [columns, activeBoardId, colIds]
+  );
+  const boardColumnIds = useMemo(() => boardColumns.map(col => col.id), [boardColumns]);
+  const boardCards = useMemo(
+    () => cards.filter(card => boardColumnIds.includes(card.columnId)),
+    [cards, boardColumnIds]
+  );
 
   const totalTasks = boardCards.length;
 
-  // Find the completed column for this board (usually ends with -done or is 'done')
-  const doneColumn = boardColumns.find(col => col.id === 'done' || col.id.endsWith('-done'));
-  const completedTasks = doneColumn ? boardCards.filter(card => card.columnId === doneColumn.id).length : 0;
-  
+  // Detect the "completed" column dynamically by its title
+  const doneColumn = useMemo(() => getCompletedColumn(boardColumns), [boardColumns]);
+  const completedTasks = doneColumn
+    ? boardCards.filter(card => card.columnId === doneColumn.id).length
+    : 0;
+
   // Overdue calculation
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const overdueTasks = boardCards.filter(card => {
     if (!card.dueDate || (doneColumn && card.columnId === doneColumn.id)) return false;
     return card.dueDate < todayStr;

@@ -1,5 +1,7 @@
-import React from 'react';
-import { KanbanProvider, useKanban } from './context/KanbanContext';
+import { useEffect } from 'react';
+import { AppProviders } from './context/AppProviders';
+import { useAuth } from './context/AuthContext';
+import { useUI } from './context/UIContext';
 import Login from './components/Login';
 import LoadingScreen from './components/LoadingScreen';
 import Sidebar from './components/Sidebar';
@@ -7,11 +9,12 @@ import Board from './components/Board';
 import Dashboard from './components/Dashboard';
 import CardModal from './components/CardModal';
 import BoardModal from './components/BoardModal';
+import ConfirmDialog from './components/ConfirmDialog';
 import './App.css';
 
 function KanbanAppContent() {
+  const { user, initAuth } = useAuth();
   const {
-    user,
     activeView,
     activeCardId,
     isAddingBoard,
@@ -21,8 +24,13 @@ function KanbanAppContent() {
     loading,
     dataLoading,
     error,
-    setError
-  } = useKanban();
+    setError,
+    confirmDialog,
+  } = useUI();
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   if (loading) {
     return <LoadingScreen />;
@@ -55,6 +63,16 @@ function KanbanAppContent() {
           }}
           boardToEdit={boardToEdit}
         />
+        <ConfirmDialog
+          isOpen={!!confirmDialog}
+          title={confirmDialog?.title}
+          message={confirmDialog?.message}
+          confirmText={confirmDialog?.confirmText}
+          cancelText={confirmDialog?.cancelText}
+          variant={confirmDialog?.variant}
+          onConfirm={confirmDialog?.onConfirm}
+          onCancel={confirmDialog?.onCancel}
+        />
       </main>
     </div>
   );
@@ -62,8 +80,8 @@ function KanbanAppContent() {
 
 export default function App() {
   return (
-    <KanbanProvider>
+    <AppProviders>
       <KanbanAppContent />
-    </KanbanProvider>
+    </AppProviders>
   );
 }

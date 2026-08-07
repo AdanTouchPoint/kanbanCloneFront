@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useKanban } from '../context/KanbanContext';
+import { useBoards } from '../context/BoardContext';
 import '../styles/BoardModal.css';
 
 export default function BoardModal({ isOpen, onClose, boardToEdit }) {
-  const { users, addBoard, updateBoard } = useKanban();
+  const { users, addBoard, updateBoard } = useBoards();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -22,6 +22,7 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
   const [isMemberSearchFocused, setIsMemberSearchFocused] = useState(false);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (boardToEdit) {
       setTitle(boardToEdit.title || '');
       setDescription(boardToEdit.description || '');
@@ -37,6 +38,7 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
     setOwnerError(false);
     setOwnerSearch('');
     setMemberSearch('');
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [boardToEdit, isOpen]);
 
   if (!isOpen) return null;

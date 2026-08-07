@@ -43,6 +43,34 @@
   color: #fff;
 }
 
+/* Data loading bar */
+.data-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--primary) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: loadingShimmer 1.2s ease-in-out infinite;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+@keyframes loadingShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

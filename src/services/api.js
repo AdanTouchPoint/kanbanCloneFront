@@ -1,12 +1,14 @@
 /**
- * API Service — Kanban Board ↔ Payload CMS (localhost:3000)
+ * API Service — Kanban Board ↔ Payload CMS
  *
  * Column title uniqueness workaround:
  *   Payload requires globally unique column titles. We store them as
  *   "Display Name‖timestamp" and only show the part before "‖" in the UI.
  */
 
-const BASE_URL = 'https://kanban-clone-back.vercel.app/api';
+import { buildWhereInParam } from '../utils/apiQuery';
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 export const getToken = () => localStorage.getItem('kb-token');
@@ -36,21 +38,23 @@ export const renameColTitle = (rawTitle = '', newDisplay) => {
 
 // ─── Task extras (stored as JSON in task.state) ───────────────────────────────
 const parseTaskExtras = (state) => {
+  if (!state) {
+    return { description: '', priority: 'medium', color: null, colorName: '' };
+  }
   try {
-    const parsed = JSON.parse(state || '{}');
-    if (parsed && typeof parsed === 'object') {
+    const parsed = JSON.parse(state);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       return {
-        description: parsed.description || '',
+        description: typeof parsed.description === 'string' ? parsed.description : '',
         priority: parsed.priority || 'medium',
-        comments: parsed.comments || [],
-        color: parsed.color || null,
-        colorName: parsed.colorName || '',
+        color: typeof parsed.color === 'string' ? parsed.color : null,
+        colorName: typeof parsed.colorName === 'string' ? parsed.colorName : '',
       };
     }
   } catch {
-    /* fall through */
+    /* state is not valid JSON — discard it instead of injecting a raw string */
   }
-  return { description: String(state || ''), priority: 'medium', comments: [], color: null, colorName: '' };
+  return { description: '', priority: 'medium', color: null, colorName: '' };
 };
 
 // ─── Transformers: API doc → frontend shape ───────────────────────────────────
@@ -96,7 +100,6 @@ export const transformTask = (doc) => {
     assigneeId: assigneeId || '',
     autorId: authorId || '',
     subtasks: [],         // populated later from checklists
-    comments: extras.comments || [],
     checklistIds: (doc.checkListsID || []).map((c) =>
       typeof c === 'string' ? c : c.id
     ),
@@ -160,8 +163,12 @@ export const apiGetMe = async () => {
 
 // ─── Generic CRUD ─────────────────────────────────────────────────────────────
 export const apiList = async (slug, params = {}) => {
-  const qs = new URLSearchParams({ limit: 100, ...params }).toString();
-  const res = await fetch(`${BASE_URL}/${slug}?${qs}`, {
+  // Separate `whereRaw` (a fully-formed `where[...]` query string for Payload)
+  // from the rest of the params, so URLSearchParams doesn't double-encode it.
+  const { whereRaw, ...rest } = params;
+  const qs = new URLSearchParams({ limit: 100, ...rest }).toString();
+  const wherePart = whereRaw ? `&${whereRaw}` : '';
+  const res = await fetch(`${BASE_URL}/${slug}?${qs}${wherePart}`, {
     headers: buildHeaders(),
   });
   if (!res.ok) throw new Error(`Error al obtener ${slug}`);
@@ -220,18 +227,12 @@ export const loadActiveBoardDetails = async (board) => {
   const colIds = board.columnIds || [];
   if (colIds.length === 0) return { columnList: [], taskList: [] };
 
-  // Construir parámetros de filtro para obtener solo las columnas de este tablero
-  const colParams = {};
-  colIds.forEach((id, idx) => {
-    colParams[`where[id][in][${idx}]`] = id;
-  });
-
+  // Payload CMS expects comma-separated values, not indexed keys.
+  const colParams = { whereRaw: buildWhereInParam(colIds) };
   const taskIds = board.taskIds || [];
   const taskParams = { depth: 1 };
   if (taskIds.length > 0) {
-    taskIds.forEach((id, idx) => {
-      taskParams[`where[id][in][${idx}]`] = id;
-    });
+    taskParams.whereRaw = buildWhereInParam(taskIds);
   }
 
   // Realizar peticiones en paralelo
@@ -255,10 +256,7 @@ export const loadActiveBoardDetails = async (board) => {
 
   const checklistDocs = [];
   if (checklistIds.length > 0) {
-    const checklistParams = { depth: 1 };
-    checklistIds.forEach((id, idx) => {
-      checklistParams[`where[id][in][${idx}]`] = id;
-    });
+    const checklistParams = { depth: 1, whereRaw: buildWhereInParam(checklistIds) };
     const docs = await apiList('checklists', checklistParams);
     checklistDocs.push(...docs);
   }
