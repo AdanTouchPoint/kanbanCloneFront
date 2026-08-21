@@ -1,5 +1,4 @@
 import '../styles/LoadingScreen.css';
-import '../styles/LoadingScreen.css';
 
 export default function LoadingScreen() {
   return (

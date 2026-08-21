@@ -3,21 +3,24 @@ import { useAuth } from '../context/AuthContext';
 import { useBoards } from '../context/BoardContext';
 import { useTasks } from '../context/TaskContext';
 import { useUI } from '../context/UIContext';
-import Card from './Card';
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableCard } from './dnd/SortableCard';
 import '../styles/Column.css';
 
-function Column({ column, cards }) {
+function Column({ column, cards, dragHandleProps }) {
   const { user } = useAuth();
-  const { renameColumn, deleteColumn, moveColumn } = useBoards();
-  const { addCard, moveCard } = useTasks();
+  const { renameColumn, deleteColumn } = useBoards();
+  const { addCard } = useTasks();
   const { setActiveCardId } = useUI();
   const [title, setTitle] = useState(column.title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [isDragOverColumn, setIsDragOverColumn] = useState(false);
-  const [isDraggingColumn, setIsDraggingColumn] = useState(false);
-
   const titleInputRef = useRef(null);
+
+  const { setNodeRef, isOver } = useDroppable({
+    id: `column-drop-${column.id}`,
+    data: { type: 'column', columnId: column.id },
+  });
 
   const handleTitleSubmit = () => {
     setIsEditingTitle(false);
@@ -52,73 +55,14 @@ function Column({ column, cards }) {
     }
   };
 
-  // Drag and Drop handlers
-  const handleDragStart = (e) => {
-    if (isEditingTitle) {
-      e.preventDefault();
-      return;
-    }
-    e.dataTransfer.setData('text/column', column.id);
-    setTimeout(() => {
-      setIsDraggingColumn(true);
-    }, 0);
-  };
-
-  const handleDragEnd = () => {
-    setIsDraggingColumn(false);
-    setIsDragOver(false);
-    setIsDragOverColumn(false);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    if (e.dataTransfer.types.includes('text/column')) {
-      setIsDragOverColumn(true);
-    } else {
-      setIsDragOver(true);
-    }
-  };
-
-  const handleDragLeave = () => {
-    setIsDragOver(false);
-    setIsDragOverColumn(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    setIsDragOverColumn(false);
-    
-    const draggedCardId = e.dataTransfer.getData('text/plain');
-    const dragColId = e.dataTransfer.getData('text/column');
-    
-    if (dragColId) {
-      if (dragColId !== column.id) {
-        moveColumn(dragColId, column.id);
-      }
-    } else if (draggedCardId) {
-      moveCard(draggedCardId, column.id);
-    }
-  };
-
   const isAdmin = user?.role === 'admin';
 
   return (
     <div
-      className={`column-container color-${column.color} ${isDragOver ? 'drag-over' : ''} ${isDragOverColumn ? 'drag-over-column' : ''} ${isDraggingColumn ? 'dragging-column' : ''}`}
-      draggable={isAdmin ? "true" : "false"}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      ref={setNodeRef}
+      className={`column-container color-${column.color} ${isOver ? 'drag-over' : ''}`}
     >
-      <div className="column-header">
+      <div className="column-header" {...(isAdmin ? dragHandleProps : {})}>
         <div className="column-title-area">
           {isEditingTitle && isAdmin ? (
             <input
@@ -136,7 +80,7 @@ function Column({ column, cards }) {
               className="column-title-text"
               onClick={() => isAdmin && setIsEditingTitle(true)}
               style={{ cursor: isAdmin ? 'pointer' : 'default' }}
-              title={isAdmin ? "Haz clic para renombrar la columna" : ""}
+              title={isAdmin ? 'Haz clic para renombrar la columna' : ''}
             >
               {column.title}
             </h3>
@@ -160,9 +104,11 @@ function Column({ column, cards }) {
       </div>
 
       <div className="cards-list">
-        {cards.map((card) => (
-          <Card key={card.id} card={card} />
-        ))}
+        <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+          {cards.map((card) => (
+            <SortableCard key={card.id} card={card} />
+          ))}
+        </SortableContext>
       </div>
 
       <div className="quick-card-composer">

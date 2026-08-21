@@ -37,24 +37,31 @@ export const renameColTitle = (rawTitle = '', newDisplay) => {
 };
 
 // ─── Task extras (stored as JSON in task.state) ───────────────────────────────
+const isPlainObject = (value) =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const DEFAULT_TASK_EXTRAS = Object.freeze({
+  description: '',
+  priority: 'medium',
+  color: null,
+  colorName: '',
+});
+
 const parseTaskExtras = (state) => {
-  if (!state) {
-    return { description: '', priority: 'medium', color: null, colorName: '' };
-  }
+  if (!state) return { ...DEFAULT_TASK_EXTRAS };
+  let parsed;
   try {
-    const parsed = JSON.parse(state);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return {
-        description: typeof parsed.description === 'string' ? parsed.description : '',
-        priority: parsed.priority || 'medium',
-        color: typeof parsed.color === 'string' ? parsed.color : null,
-        colorName: typeof parsed.colorName === 'string' ? parsed.colorName : '',
-      };
-    }
+    parsed = JSON.parse(state);
   } catch {
-    /* state is not valid JSON — discard it instead of injecting a raw string */
+    return { ...DEFAULT_TASK_EXTRAS };
   }
-  return { description: '', priority: 'medium', color: null, colorName: '' };
+  if (!isPlainObject(parsed)) return { ...DEFAULT_TASK_EXTRAS };
+  return {
+    description: typeof parsed.description === 'string' ? parsed.description : '',
+    priority: parsed.priority || 'medium',
+    color: typeof parsed.color === 'string' ? parsed.color : null,
+    colorName: typeof parsed.colorName === 'string' ? parsed.colorName : '',
+  };
 };
 
 // ─── Transformers: API doc → frontend shape ───────────────────────────────────
@@ -221,59 +228,56 @@ export const loadInitialData = async () => {
   return { boardList, userList };
 };
 
-export const loadActiveBoardDetails = async (board) => {
-  if (!board) return { columnList: [], taskList: [] };
-
+export const loadBoardColumns = async (board) => {
+  if (!board) return [];
   const colIds = board.columnIds || [];
-  if (colIds.length === 0) return { columnList: [], taskList: [] };
-
-  // Payload CMS expects comma-separated values, not indexed keys.
+  if (colIds.length === 0) return [];
   const colParams = { whereRaw: buildWhereInParam(colIds) };
-  const taskIds = board.taskIds || [];
-  const taskParams = { depth: 1 };
-  if (taskIds.length > 0) {
-    taskParams.whereRaw = buildWhereInParam(taskIds);
-  }
-
-  // Realizar peticiones en paralelo
-  const [columnDocs, taskDocs] = await Promise.all([
-    apiList('columns', colParams),
-    taskIds.length > 0 ? apiList('tasks', taskParams) : Promise.resolve([]),
-  ]);
-
-  const columnRaw = columnDocs.map(transformColumn);
-  const columnList = columnRaw.map((col) => ({
-    ...col,
+  const columnDocs = await apiList('columns', colParams);
+  return columnDocs.map((doc) => ({
+    ...transformColumn(doc),
     boardId: board.id,
   }));
+};
 
-  // Obtener solo los checklists requeridos por las tareas del tablero
+export const loadBoardTasks = async (board) => {
+  if (!board) return [];
+  const taskIds = board.taskIds || [];
+  if (taskIds.length === 0) return [];
+  const taskParams = { depth: 1, whereRaw: buildWhereInParam(taskIds) };
+  const taskDocs = await apiList('tasks', taskParams);
+
   const checklistIds = [];
   taskDocs.forEach((task) => {
     const ids = (task.checkListsID || []).map((c) => (typeof c === 'string' ? c : c.id));
     checklistIds.push(...ids);
   });
 
-  const checklistDocs = [];
+  const checklistMap = {};
   if (checklistIds.length > 0) {
     const checklistParams = { depth: 1, whereRaw: buildWhereInParam(checklistIds) };
-    const docs = await apiList('checklists', checklistParams);
-    checklistDocs.push(...docs);
+    const checklistDocs = await apiList('checklists', checklistParams);
+    checklistDocs.forEach((doc) => {
+      checklistMap[doc.id] = transformChecklist(doc);
+    });
   }
 
-  const checklistMap = {};
-  checklistDocs.forEach((doc) => {
-    checklistMap[doc.id] = transformChecklist(doc);
-  });
-
-  const taskList = taskDocs.map((doc) => {
+  return taskDocs.map((doc) => {
     const card = transformTask(doc);
     card.subtasks = card.checklistIds
       .map((cid) => checklistMap[cid])
       .filter(Boolean);
     return card;
   });
+};
 
+// Keep the legacy combined loader for any callers that still use it.
+export const loadActiveBoardDetails = async (board) => {
+  if (!board) return { columnList: [], taskList: [] };
+  const [columnList, taskList] = await Promise.all([
+    loadBoardColumns(board),
+    loadBoardTasks(board),
+  ]);
   return { columnList, taskList };
 };
 

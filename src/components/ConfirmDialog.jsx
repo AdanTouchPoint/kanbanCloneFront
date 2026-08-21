@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import '../styles/ConfirmDialog.css';
 
 export default function ConfirmDialog({
@@ -11,36 +12,21 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }) {
-  const confirmRef = useRef(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      // Foco inicial en el botón de cancelar para evitar acciones accidentales
-      const t = setTimeout(() => confirmRef.current?.focus(), 0);
-      return () => clearTimeout(t);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const handleKey = (e) => {
-      if (e.key === 'Escape') onCancel?.();
-      if (e.key === 'Enter') onConfirm?.();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, onCancel, onConfirm]);
+  const containerRef = useRef(null);
+  useFocusTrap(isOpen, containerRef, onCancel);
 
   if (!isOpen) return null;
 
   return (
     <div className="confirm-overlay" onClick={onCancel}>
       <div
+        ref={containerRef}
         className={`confirm-dialog confirm-${variant}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
+        tabIndex={-1}
       >
         <div className="confirm-icon" aria-hidden="true">
           {variant === 'danger' ? (
@@ -64,7 +50,6 @@ export default function ConfirmDialog({
             {cancelText}
           </button>
           <button
-            ref={confirmRef}
             type="button"
             className={`confirm-btn-confirm confirm-btn-${variant}`}
             onClick={onConfirm}

@@ -444,7 +444,7 @@
   background-color: var(--primary-light);
   color: var(--primary);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid var(--primary-light);
   font-weight: 600;
   font-size: 14px;
   transition: all var(--transition-fast);
@@ -457,8 +457,8 @@
 
 .modal-sidebar-duplicate-btn:hover:not(:disabled) {
   background-color: var(--primary);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px hsl(320 50% 32% / 0.25);
 }
 
 .modal-sidebar-duplicate-btn:disabled {
@@ -592,7 +592,7 @@
 .modal-save-btn {
   padding: 10px 20px;
   background-color: var(--primary);
-  color: #ffffff;
+  color: var(--text-inverse);
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 600;
@@ -602,7 +602,7 @@
 
 .modal-save-btn:hover {
   background-color: var(--primary-hover);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 12px hsl(320 50% 32% / 0.25);
 }
 
 .modal-cancel-btn {

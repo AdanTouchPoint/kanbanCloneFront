@@ -1,5 +1,7 @@
 import { createContext, useState, useContext, useCallback } from 'react';
-import { getToken, setToken, removeToken, apiLogin, apiLogout, apiGetMe } from '../services/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { getToken, setToken, removeToken, apiLogin, apiLogout, apiGetMe } from '@/services/api';
+import { boardKeys, userKeys, checklistKeys } from '@/queries/keys';
 import { useUI } from './UIContext';
 
 const AuthContext = createContext(null);
@@ -9,31 +11,41 @@ const determineRole = (role) => {
   return 'user';
 };
 
+const mapAuthUser = (apiUser, fallbackEmail = '') => {
+  const role = determineRole(apiUser.role);
+  const displayName = apiUser.name || apiUser.email || fallbackEmail;
+  return {
+    id: apiUser.id,
+    email: apiUser.email,
+    name: displayName,
+    role,
+    avatar: displayName.charAt(0).toUpperCase(),
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const { setLoading } = useUI();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
 
-  const login = useCallback(async (email, password) => {
-    const data = await apiLogin(email, password);
-    setToken(data.token);
-    const role = determineRole(data.user.role);
-    const userData = {
-      id: data.user.id,
-      email: data.user.email,
-      name: data.user.name || email.split('@')[0],
-      role,
-      avatar: (data.user.name || email).charAt(0).toUpperCase(),
-    };
-    setUser(userData);
-    window.dispatchEvent(new CustomEvent('kanban:userAuthenticated'));
-    return userData;
-  }, []);
+  const login = useCallback(
+    async (email, password) => {
+      const data = await apiLogin(email, password);
+      setToken(data.token);
+      const userData = mapAuthUser(data.user, email);
+      setUser(userData);
+      return userData;
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     await apiLogout();
     setUser(null);
-    window.dispatchEvent(new CustomEvent('kanban:userLoggedOut'));
-  }, []);
+    queryClient.removeQueries({ queryKey: boardKeys.all });
+    queryClient.removeQueries({ queryKey: userKeys.all });
+    queryClient.removeQueries({ queryKey: checklistKeys.all });
+  }, [queryClient]);
 
   const initAuth = useCallback(async () => {
     setLoading(true);
@@ -45,15 +57,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const apiUser = await apiGetMe();
       if (apiUser) {
-        const role = determineRole(apiUser.role);
-        setUser({
-          id: apiUser.id,
-          email: apiUser.email,
-          name: apiUser.name || apiUser.email,
-          role,
-          avatar: (apiUser.name || apiUser.email).charAt(0).toUpperCase(),
-        });
-        window.dispatchEvent(new CustomEvent('kanban:userAuthenticated'));
+        setUser(mapAuthUser(apiUser));
       } else {
         removeToken();
       }

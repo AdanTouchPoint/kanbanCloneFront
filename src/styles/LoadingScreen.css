@@ -11,30 +11,31 @@
 .loading-screen::before {
   content: '';
   position: absolute;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, hsla(var(--accent-hsl), 0.12), transparent 70%);
+  width: 560px;
+  height: 560px;
+  background: radial-gradient(circle, hsl(320 70% 75% / 0.3), transparent 70%);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   animation: loadingPulse 2.5s ease-in-out infinite;
+  filter: blur(60px);
 }
 
 .loading-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
+  gap: 32px;
   position: relative;
   z-index: 1;
 }
 
 .loading-logo {
-  color: var(--accent);
+  color: var(--primary);
   animation: loadingFloat 2s ease-in-out infinite;
+  filter: drop-shadow(0 4px 12px hsl(320 50% 32% / 0.18));
 }
 
-/* Four animated bars */
 .loading-bars {
   display: flex;
   gap: 6px;
@@ -44,8 +45,8 @@
 
 .loading-bar {
   width: 6px;
-  border-radius: 999px;
-  background: var(--accent);
+  border-radius: var(--radius-full);
+  background: var(--primary);
   animation: loadingWave 1.2s ease-in-out infinite;
 }
 
@@ -70,9 +71,11 @@
 }
 
 .loading-text {
+  font-family: var(--font-display);
+  font-style: italic;
   color: var(--text-secondary);
-  font-size: 14px;
-  letter-spacing: 0.6px;
+  font-size: 16px;
+  letter-spacing: 0.01em;
   animation: fadeIn 0.8s ease-out;
 }
 

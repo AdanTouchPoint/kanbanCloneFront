@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState, useId } from 'react';
 import { useBoards } from '../context/BoardContext';
 import { useTasks } from '../context/TaskContext';
 import { useUI } from '../context/UIContext';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import '../styles/CardModal.css';
 
 const COLOR_PRESETS = [
@@ -18,65 +19,122 @@ export default function CardModal() {
   const { cards, updateCard, deleteCard, duplicateCard, addSubtask, updateSubtask, deleteSubtask, updateColorNameOnBoard } = useTasks();
   const { activeCardId, setActiveCardId } = useUI();
 
-  const [duplicating, setDuplicating] = useState(false);
-  const [duplicateSuccess, setDuplicateSuccess] = useState(false);
-
-  const card = cards.find(c => c.id === activeCardId);
+  const card = cards.find((c) => c.id === activeCardId);
   const activeBoard = myBoards.find((b) => b.id === activeBoardId);
   const boardMembers = users.filter(
     (u) => activeBoard?.memberIds?.includes(u.id) || u.id === activeBoard?.authorId
   );
 
-  // Local state to avoid input lag on fast typings and allow discard changes
-  const [localTitle, setLocalTitle] = useState('');
-  const [localDesc, setLocalDesc] = useState('');
-  const [localColorName, setLocalColorName] = useState('');
-  const [localColumnId, setLocalColumnId] = useState('');
-  const [localDueDate, setLocalDueDate] = useState('');
-  const [localAssigneeId, setLocalAssigneeId] = useState('');
-  const [localColor, setLocalColor] = useState(null);
-  const [localSubtasks, setLocalSubtasks] = useState([]);
+  if (!card) return null;
+
+  return (
+    <CardModalForm
+      key={card.id}
+      card={card}
+      boardMembers={boardMembers}
+      availableColumns={columns.filter((col) => col.boardId === activeBoardId)}
+      allUsers={users}
+      cards={cards}
+      onClose={() => {
+        if (card.isDraft) deleteCard(card.id);
+        setActiveCardId(null);
+      }}
+      onDeleteCard={() => deleteCard(card.id)}
+      onDuplicate={async () => {
+        await duplicateCard(card.id);
+      }}
+      onSave={async (draftState) => {
+        const trimmed = draftState.title.trim();
+        if (!trimmed) return false;
+
+        await Promise.all(
+          draftState.subtasksToDelete.map((subId) => deleteSubtask(card.id, subId))
+        );
+        for (const sub of draftState.subtasks) {
+          if (sub.isNew) {
+            await addSubtask(card.id, sub.title, sub.memberIds?.[0] || '', sub.dueDate);
+          } else {
+            const original = card.subtasks.find((s) => s.id === sub.id);
+            if (original) {
+              const hasChanged =
+                original.title !== sub.title ||
+                original.completed !== sub.completed ||
+                original.dueDate !== sub.dueDate ||
+                JSON.stringify(original.memberIds) !== JSON.stringify(sub.memberIds);
+              if (hasChanged) {
+                await updateSubtask(card.id, sub.id, {
+                  title: sub.title,
+                  completed: sub.completed,
+                  dueDate: sub.dueDate,
+                  assigneeId: sub.memberIds?.[0] || '',
+                });
+              }
+            }
+          }
+        }
+
+        await updateCard(card.id, {
+          title: trimmed,
+          description: draftState.description,
+          columnId: draftState.columnId,
+          dueDate: draftState.dueDate,
+          assigneeId: draftState.assigneeId,
+          color: draftState.color,
+          colorName: draftState.colorName,
+          isDraft: false,
+        });
+
+        if (draftState.color && draftState.colorName !== card.colorName) {
+          await updateColorNameOnBoard(draftState.color, draftState.colorName.trim());
+        }
+
+        return true;
+      }}
+    />
+  );
+}
+
+function CardModalForm({
+  card,
+  boardMembers,
+  availableColumns,
+  allUsers,
+  cards,
+  onClose,
+  onDeleteCard,
+  onDuplicate,
+  onSave,
+}) {
+  const [localTitle, setLocalTitle] = useState(card.title || '');
+  const [localDesc, setLocalDesc] = useState(card.description || '');
+  const [localColorName, setLocalColorName] = useState(card.colorName || '');
+  const [localColumnId, setLocalColumnId] = useState(card.columnId || '');
+  const [localDueDate, setLocalDueDate] = useState(card.dueDate || '');
+  const [localAssigneeId, setLocalAssigneeId] = useState(card.assigneeId || '');
+  const [localColor, setLocalColor] = useState(card.color || null);
+  const [localSubtasks, setLocalSubtasks] = useState(() =>
+    card.subtasks ? [...card.subtasks] : []
+  );
   const [subtasksToDelete, setSubtasksToDelete] = useState([]);
 
   const [newSubtask, setNewSubtask] = useState('');
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState('');
   const [newSubtaskDate, setNewSubtaskDate] = useState('');
   const [titleError, setTitleError] = useState(false);
+  const [duplicateState, setDuplicateState] = useState('idle'); // idle | pending | success
 
-  // Sync local state when modal opens or card updates from outside
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (card) {
-      setLocalTitle(card.title);
-      setLocalDesc(card.description || '');
-      setLocalColorName(card.colorName || '');
-      setLocalColumnId(card.columnId || '');
-      setLocalDueDate(card.dueDate || '');
-      setLocalAssigneeId(card.assigneeId || '');
-      setLocalColor(card.color || null);
-      setLocalSubtasks(card.subtasks ? [...card.subtasks] : []);
-      setSubtasksToDelete([]);
-      setTitleError(false);
-    }
-    /* eslint-enable react-hooks/set-state-in-effect */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCardId, card?.id]);
+  const containerRef = useRef(null);
+  const titleId = useId();
+  const descId = useId();
+  const columnId = useId();
+  const dueId = useId();
+  const assigneeId = useId();
+  const colorId = useId();
+  useFocusTrap(true, containerRef, onClose);
 
-  if (!card) return null;
+  const handleClose = onClose;
 
-  const handleClose = () => {
-    if (card.isDraft) {
-      deleteCard(card.id);
-    }
-    setActiveCardId(null);
-  };
-
-  const handleCancel = () => {
-    if (card.isDraft) {
-      deleteCard(card.id);
-    }
-    setActiveCardId(null);
-  };
+  const handleCancel = onClose;
 
   const handleSave = async () => {
     const trimmed = localTitle.trim();
@@ -84,92 +142,54 @@ export default function CardModal() {
       setTitleError(true);
       return;
     }
-    setTitleError(false);
-
     try {
-      // 1. Procesar eliminaciones de subtareas
-      for (const subId of subtasksToDelete) {
-        await deleteSubtask(card.id, subId);
-      }
-
-      // 2. Procesar adiciones y actualizaciones de subtareas
-      for (const sub of localSubtasks) {
-        if (sub.isNew) {
-          await addSubtask(card.id, sub.title, sub.memberIds?.[0] || '', sub.dueDate);
-        } else {
-          const original = card.subtasks.find(s => s.id === sub.id);
-          if (original) {
-            const hasChanged = original.title !== sub.title ||
-                               original.completed !== sub.completed ||
-                               original.dueDate !== sub.dueDate ||
-                               JSON.stringify(original.memberIds) !== JSON.stringify(sub.memberIds);
-            if (hasChanged) {
-              await updateSubtask(card.id, sub.id, {
-                title: sub.title,
-                completed: sub.completed,
-                dueDate: sub.dueDate,
-                assigneeId: sub.memberIds?.[0] || '',
-              });
-            }
-          }
-        }
-      }
-
-      // 3. Guardar cambios en la tarea principal
-      const updates = {
-        title: trimmed,
+      const ok = await onSave({
+        title: localTitle,
         description: localDesc,
+        colorName: localColorName,
         columnId: localColumnId,
         dueDate: localDueDate,
         assigneeId: localAssigneeId,
         color: localColor,
-        colorName: localColorName,
-        isDraft: false,
-      };
-
-      await updateCard(card.id, updates);
-
-      // Si cambió el nombre del color, actualizarlo para todo el tablero
-      if (localColor && localColorName !== card.colorName) {
-        await updateColorNameOnBoard(localColor, localColorName.trim());
-      }
-
-      setActiveCardId(null);
+        subtasks: localSubtasks,
+        subtasksToDelete,
+      });
+      if (ok) onClose();
     } catch (err) {
       console.error('Error al guardar cambios de la tarea:', err);
     }
   };
 
-  const handleToggleSubtaskLocal = (cardId, subtaskId) => {
-    setLocalSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, completed: !s.completed } : s));
+  const handleToggleSubtaskLocal = (_cardId, subtaskId) => {
+    setLocalSubtasks((prev) =>
+      prev.map((s) => (s.id === subtaskId ? { ...s, completed: !s.completed } : s))
+    );
   };
 
-  const handleUpdateSubtaskLocal = (cardId, subtaskId, updatedData) => {
-    setLocalSubtasks(prev => prev.map(s => {
-      if (s.id === subtaskId) {
-        let extra = {};
+  const handleUpdateSubtaskLocal = (_cardId, subtaskId, updatedData) => {
+    setLocalSubtasks((prev) =>
+      prev.map((s) => {
+        if (s.id !== subtaskId) return s;
+        const extra = {};
         if (updatedData.assigneeId !== undefined) {
-          const matched = users.find(u => u.id === updatedData.assigneeId);
-          extra = {
-            assignee: matched ? matched.name : '',
-            memberIds: updatedData.assigneeId ? [updatedData.assigneeId] : []
-          };
+          const matched = allUsers.find((u) => u.id === updatedData.assigneeId);
+          extra.assignee = matched ? matched.name : '';
+          extra.memberIds = updatedData.assigneeId ? [updatedData.assigneeId] : [];
         }
         return { ...s, ...updatedData, ...extra };
-      }
-      return s;
-    }));
+      })
+    );
   };
 
-  const handleDeleteSubtaskLocal = (cardId, subtaskId) => {
+  const handleDeleteSubtaskLocal = (_cardId, subtaskId) => {
     if (typeof subtaskId === 'string' && !subtaskId.startsWith('temp-')) {
-      setSubtasksToDelete(prev => [...prev, subtaskId]);
+      setSubtasksToDelete((prev) => [...prev, subtaskId]);
     }
-    setLocalSubtasks(prev => prev.filter(s => s.id !== subtaskId));
+    setLocalSubtasks((prev) => prev.filter((s) => s.id !== subtaskId));
   };
 
   const handleAddSubtaskLocal = (title, assigneeId, dueDate) => {
-    const matched = users.find(u => u.id === assigneeId);
+    const matched = allUsers.find((u) => u.id === assigneeId);
     const newSub = {
       id: `temp-${Date.now()}`,
       title,
@@ -177,9 +197,9 @@ export default function CardModal() {
       assignee: matched ? matched.name : '',
       dueDate,
       memberIds: assigneeId ? [assigneeId] : [],
-      isNew: true
+      isNew: true,
     };
-    setLocalSubtasks(prev => [...prev, newSub]);
+    setLocalSubtasks((prev) => [...prev, newSub]);
   };
 
   const handleAddSubtaskSubmit = (e) => {
@@ -191,57 +211,61 @@ export default function CardModal() {
     setNewSubtaskDate('');
   };
 
-  const handleDeleteCard = () => {
-    deleteCard(card.id);
-  };
-
   const handleDuplicateCard = async () => {
-    if (duplicating) return;
-    setDuplicating(true);
+    if (duplicateState !== 'idle') return;
+    setDuplicateState('pending');
     try {
-      await duplicateCard(card.id);
-      setDuplicateSuccess(true);
-      setTimeout(() => setDuplicateSuccess(false), 2000);
-    } finally {
-      setDuplicating(false);
+      await onDuplicate();
+      setDuplicateState('success');
+      setTimeout(() => setDuplicateState('idle'), 2000);
+    } catch {
+      setDuplicateState('idle');
     }
   };
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
+      <div
+        ref={containerRef}
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
         <header className="modal-header">
           <div className="modal-header-title-row">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)' }} aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <line x1="9" y1="3" x2="9" y2="21" />
             </svg>
             <input
+              id={titleId}
               type="text"
               className={`modal-title-input ${titleError ? 'error' : ''}`}
               value={localTitle}
               onChange={(e) => setLocalTitle(e.target.value)}
-              title="Haz clic para editar el título"
+              aria-label="Título de la tarea"
+              aria-invalid={titleError || undefined}
+              aria-describedby={titleError ? 'card-title-error' : undefined}
               placeholder="El título no puede estar vacío"
             />
           </div>
-          <button className="modal-close-btn" onClick={handleClose} title="Cerrar modal">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <button className="modal-close-btn" onClick={handleClose} aria-label="Cerrar modal">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </header>
 
-        {/* Modal Body */}
         <div className="modal-body">
-          {/* Main Column */}
           <div className="modal-main-col">
-            {/* Description */}
             <div className="modal-field-group">
-              <label className="modal-field-label">Descripción</label>
+              <label htmlFor={descId} className="modal-field-label">Descripción</label>
               <textarea
+                id={descId}
                 className="modal-desc-textarea"
                 placeholder="Añade una descripción más detallada..."
                 value={localDesc}
@@ -249,9 +273,8 @@ export default function CardModal() {
               />
             </div>
 
-            {/* Subtasks */}
             <div className="modal-field-group">
-              <label className="modal-field-label">Subtareas</label>
+              <span className="modal-field-label">Subtareas</span>
               <div className="subtasks-list">
                 {localSubtasks.map((sub) => (
                   <SubtaskRow
@@ -267,7 +290,9 @@ export default function CardModal() {
               </div>
               <form className="add-subtask-form" onSubmit={handleAddSubtaskSubmit}>
                 <div className="add-subtask-inputs">
+                  <label htmlFor="new-subtask-title" className="sr-only">Título de la subtarea</label>
                   <input
+                    id="new-subtask-title"
                     type="text"
                     className="add-subtask-title-input"
                     placeholder="Nueva subtarea..."
@@ -276,28 +301,23 @@ export default function CardModal() {
                     required
                   />
                   <div className="add-subtask-sub-row">
+                    <label htmlFor="new-subtask-assignee" className="sr-only">Asignar subtarea a</label>
                     <select
+                      id="new-subtask-assignee"
                       className="add-subtask-assignee-select"
                       value={newSubtaskAssignee}
                       onChange={(e) => setNewSubtaskAssignee(e.target.value)}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: 'var(--bg-secondary)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border-color)',
-                        outline: 'none',
-                        flex: 1
-                      }}
                     >
                       <option value="">Asignar a...</option>
-                      {boardMembers.map(u => (
+                      {boardMembers.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.name}
                         </option>
                       ))}
                     </select>
+                    <label htmlFor="new-subtask-date" className="sr-only">Fecha de la subtarea</label>
                     <input
+                      id="new-subtask-date"
                       type="date"
                       className="add-subtask-date-input"
                       value={newSubtaskDate}
@@ -310,29 +330,27 @@ export default function CardModal() {
                 </button>
               </form>
             </div>
-
           </div>
 
-          {/* Properties Sidebar Panel */}
           <div className="modal-sidebar-col">
-            {/* Status (Column) */}
             <div className="modal-field-group">
-              <label className="modal-field-label">Estado (Columna)</label>
+              <label htmlFor={columnId} className="modal-field-label">Estado (Columna)</label>
               <select
+                id={columnId}
                 className="modal-select"
                 value={localColumnId}
                 onChange={(e) => setLocalColumnId(e.target.value)}
               >
-                {columns.filter(col => col.boardId === activeBoardId).map(col => (
+                {availableColumns.map((col) => (
                   <option key={col.id} value={col.id}>{col.title}</option>
                 ))}
               </select>
             </div>
 
-            {/* Due Date */}
             <div className="modal-field-group">
-              <label className="modal-field-label">Fecha de Vencimiento</label>
+              <label htmlFor={dueId} className="modal-field-label">Fecha de Vencimiento</label>
               <input
+                id={dueId}
                 type="date"
                 className="modal-input"
                 value={localDueDate || ''}
@@ -340,16 +358,16 @@ export default function CardModal() {
               />
             </div>
 
-            {/* Assignee */}
             <div className="modal-field-group">
-              <label className="modal-field-label">Asignado a</label>
+              <label htmlFor={assigneeId} className="modal-field-label">Asignado a</label>
               <select
+                id={assigneeId}
                 className="modal-select"
                 value={localAssigneeId || ''}
                 onChange={(e) => setLocalAssigneeId(e.target.value)}
               >
                 <option value="">Sin asignar</option>
-                {boardMembers.map(u => (
+                {boardMembers.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name} ({u.email})
                   </option>
@@ -357,14 +375,16 @@ export default function CardModal() {
               </select>
             </div>
 
-            {/* Color de la Tarjeta */}
             <div className="modal-field-group">
-              <label className="modal-field-label">Color de Tarjeta</label>
-              <div className="card-color-picker">
+              <span id={colorId} className="modal-field-label">Color de Tarjeta</span>
+              <div className="card-color-picker" role="radiogroup" aria-labelledby={colorId}>
                 {COLOR_PRESETS.map((p) => (
                   <button
                     key={p.value}
                     type="button"
+                    role="radio"
+                    aria-checked={localColor === p.value}
+                    aria-label={p.label}
                     className={`color-picker-dot ${localColor === p.value ? 'active' : ''}`}
                     style={{ backgroundColor: p.value }}
                     onClick={() => {
@@ -372,11 +392,12 @@ export default function CardModal() {
                       const existingCardWithColor = cards.find(
                         (c) => c.color === newColor && c.colorName
                       );
-                      const defaultName = existingCardWithColor ? existingCardWithColor.colorName : '';
+                      const defaultName = existingCardWithColor
+                        ? existingCardWithColor.colorName
+                        : '';
                       setLocalColor(newColor);
                       setLocalColorName(defaultName);
                     }}
-                    title={p.label}
                   />
                 ))}
                 {localColor && (
@@ -384,7 +405,7 @@ export default function CardModal() {
                     type="button"
                     className="color-picker-clear-btn"
                     onClick={() => { setLocalColor(null); setLocalColorName(''); }}
-                    title="Quitar color"
+                    aria-label="Quitar color"
                   >
                     ×
                   </button>
@@ -392,16 +413,16 @@ export default function CardModal() {
               </div>
               {localColor && (
                 <div style={{ marginTop: '8px' }}>
+                  <label htmlFor="card-color-name" className="sr-only">Nombre del color</label>
                   <input
+                    id="card-color-name"
                     type="text"
                     className="modal-input"
                     placeholder="Nombrar este color..."
                     value={localColorName}
                     onChange={(e) => setLocalColorName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.target.blur();
-                      }
+                      if (e.key === 'Enter') e.target.blur();
                     }}
                     title="Ponle un nombre a este color para todo el tablero"
                   />
@@ -409,18 +430,17 @@ export default function CardModal() {
               )}
             </div>
 
-            {/* Duplicate task */}
             <button
-              className={`modal-sidebar-duplicate-btn ${duplicateSuccess ? 'success' : ''}`}
+              className={`modal-sidebar-duplicate-btn ${duplicateState === 'success' ? 'success' : ''}`}
               onClick={handleDuplicateCard}
-              disabled={duplicating}
+              disabled={duplicateState === 'pending'}
               title="Duplicar esta tarea en la misma columna"
             >
-              {duplicating ? (
+              {duplicateState === 'pending' ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="spin-icon">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
-              ) : duplicateSuccess ? (
+              ) : duplicateState === 'success' ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -430,17 +450,22 @@ export default function CardModal() {
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                 </svg>
               )}
-              <span>{duplicating ? 'Duplicando...' : duplicateSuccess ? '¡Duplicada!' : 'Duplicar Tarea'}</span>
+              <span>
+                {duplicateState === 'pending'
+                  ? 'Duplicando...'
+                  : duplicateState === 'success'
+                    ? '¡Duplicada!'
+                    : 'Duplicar Tarea'}
+              </span>
             </button>
 
-            {/* Delete entire task */}
             <button
               className="modal-sidebar-delete-btn"
-              onClick={handleDeleteCard}
+              onClick={onDeleteCard}
               title="Eliminar esta tarea definitivamente"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6" />
+                <polyline points="3 6 5 6 21 6 21 6" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
               <span>Eliminar Tarea</span>
@@ -448,14 +473,22 @@ export default function CardModal() {
           </div>
         </div>
 
-        {/* Modal Footer */}
         <footer className="modal-footer">
-          {titleError && <span className="modal-error-message" style={{ color: 'var(--danger)', marginRight: 'auto', fontSize: '13px', display: 'flex', alignItems: 'center' }}>⚠️ El título es requerido</span>}
+          {titleError && (
+            <span
+              id="card-title-error"
+              role="alert"
+              className="modal-error-message"
+              style={{ color: 'var(--danger)', marginRight: 'auto', fontSize: '13px', display: 'flex', alignItems: 'center' }}
+            >
+              ⚠️ El título es requerido
+            </span>
+          )}
           <button className="modal-cancel-btn" onClick={handleCancel}>
             Cancelar
           </button>
-          <button 
-            className="modal-save-btn" 
+          <button
+            className="modal-save-btn"
             onClick={handleSave}
             disabled={!localTitle.trim()}
             style={!localTitle.trim() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
@@ -471,12 +504,6 @@ export default function CardModal() {
 function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, updateSubtask }) {
   const [isEditing, setIsEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState(sub.title);
-
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setLocalTitle(sub.title);
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [sub.title]);
 
   const handleBlur = () => {
     setIsEditing(false);
@@ -505,9 +532,11 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
       <div className="subtask-item">
         <input
           type="checkbox"
+          id={`subtask-${sub.id}`}
           className="subtask-checkbox"
           checked={sub.completed}
           onChange={() => toggleSubtask(cardId, sub.id)}
+          aria-label={`Marcar subtarea ${sub.title}`}
         />
         {isEditing ? (
           <input
@@ -517,31 +546,32 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
             onChange={(e) => setLocalTitle(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
+            aria-label="Editar título de la subtarea"
             autoFocus
           />
         ) : (
-          <span
+          <label
+            htmlFor={`subtask-${sub.id}`}
             className={`subtask-title ${sub.completed ? 'completed' : ''}`}
             onClick={() => setIsEditing(true)}
             title="Haz clic para editar la subtarea"
             style={{ cursor: 'pointer' }}
           >
             {sub.title}
-          </span>
+          </label>
         )}
         <button
           className="subtask-delete-btn"
           onClick={() => deleteSubtask(cardId, sub.id)}
-          title="Eliminar subtarea"
+          aria-label={`Eliminar subtarea ${sub.title}`}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
           </svg>
         </button>
       </div>
 
-      {/* Subtask assignee and date row */}
       <div className="subtask-details-row">
         <div className="subtask-detail-field">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -560,11 +590,11 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
               fontSize: '11px',
               cursor: 'pointer',
               outline: 'none',
-              padding: 0
+              padding: 0,
             }}
           >
             <option value="" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>Sin asignar</option>
-            {boardMembers.map(u => (
+            {boardMembers.map((u) => (
               <option key={u.id} value={u.id} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
                 {u.name}
               </option>
@@ -583,7 +613,7 @@ function SubtaskRow({ sub, cardId, boardMembers, toggleSubtask, deleteSubtask, u
             className={`subtask-inline-date ${isOverdue ? 'overdue' : ''}`}
             value={sub.dueDate || ''}
             onChange={(e) => updateSubtask(cardId, sub.id, { dueDate: e.target.value })}
-            title={isOverdue ? "¡Subtarea vencida!" : "Fecha límite de la subtarea"}
+            title={isOverdue ? '¡Subtarea vencida!' : 'Fecha límite de la subtarea'}
           />
         </div>
       </div>

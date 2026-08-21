@@ -1,47 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState, useId } from 'react';
 import { useBoards } from '../context/BoardContext';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import '../styles/BoardModal.css';
 
 export default function BoardModal({ isOpen, onClose, boardToEdit }) {
   const { users, addBoard, updateBoard } = useBoards();
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [ownerId, setOwnerId] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState([]);
-  
+  if (!isOpen) return null;
+
+  return (
+    <BoardModalForm
+      key={boardToEdit?.id ?? 'new'}
+      boardToEdit={boardToEdit}
+      users={users}
+      onClose={onClose}
+      onCreate={addBoard}
+      onUpdate={updateBoard}
+    />
+  );
+}
+
+function BoardModalForm({ boardToEdit, users, onClose, onCreate, onUpdate }) {
+  const [title, setTitle] = useState(boardToEdit?.title || '');
+  const [description, setDescription] = useState(boardToEdit?.description || '');
+  const [ownerId, setOwnerId] = useState(boardToEdit?.ownerId || '');
+  const [selectedMembers, setSelectedMembers] = useState(boardToEdit?.memberIds || []);
+
+  const containerRef = useRef(null);
+  const titleId = useId();
+  const descId = useId();
+  const ownerIdId = useId();
+  const memberIdId = useId();
+  useFocusTrap(true, containerRef, onClose);
+
   const [titleError, setTitleError] = useState(false);
   const [ownerError, setOwnerError] = useState(false);
 
-  // Search states
   const [ownerSearch, setOwnerSearch] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
-  
-  // Focus tracking for dropdowns
+
   const [isOwnerSearchFocused, setIsOwnerSearchFocused] = useState(false);
   const [isMemberSearchFocused, setIsMemberSearchFocused] = useState(false);
-
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (boardToEdit) {
-      setTitle(boardToEdit.title || '');
-      setDescription(boardToEdit.description || '');
-      setOwnerId(boardToEdit.ownerId || '');
-      setSelectedMembers(boardToEdit.memberIds || []);
-    } else {
-      setTitle('');
-      setDescription('');
-      setOwnerId('');
-      setSelectedMembers([]);
-    }
-    setTitleError(false);
-    setOwnerError(false);
-    setOwnerSearch('');
-    setMemberSearch('');
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [boardToEdit, isOpen]);
-
-  if (!isOpen) return null;
 
   const handleClose = () => {
     setTitle('');
@@ -73,18 +72,18 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
 
     try {
       if (boardToEdit) {
-        await updateBoard(boardToEdit.id, {
+        await onUpdate(boardToEdit.id, {
           name: trimmedTitle,
           description: description,
           ownerId: ownerId,
-          membersID: selectedMembers
+          membersID: selectedMembers,
         });
       } else {
-        await addBoard({
+        await onCreate({
           name: trimmedTitle,
           description: description,
           ownerId: ownerId,
-          membersID: selectedMembers
+          membersID: selectedMembers,
         });
       }
       handleClose();
@@ -112,11 +111,19 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
 
   return (
     <div className="board-modal-overlay" onClick={handleClose}>
-      <div className="board-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={containerRef}
+        className="board-modal-content"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
         <header className="board-modal-header">
-          <h2 className="board-modal-title">{boardToEdit ? 'Editar Tablero' : 'Crear Nuevo Tablero'}</h2>
-          <button className="board-modal-close" onClick={handleClose} title="Cerrar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <h2 id={titleId} className="board-modal-title">{boardToEdit ? 'Editar Tablero' : 'Crear Nuevo Tablero'}</h2>
+          <button className="board-modal-close" onClick={handleClose} aria-label="Cerrar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -125,21 +132,25 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
 
         <div className="board-modal-body">
           <div className="board-form-group">
-            <label className="board-form-label">Nombre del tablero <span style={{color: 'var(--danger)'}}>*</span></label>
+            <label htmlFor={titleId + '-input'} className="board-form-label">Nombre del tablero <span style={{color: 'var(--danger)'}} aria-hidden="true">*</span></label>
             <input
+              id={titleId + '-input'}
               type="text"
               className={`board-input ${titleError ? 'error' : ''}`}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej. Proyecto Alpha"
+              aria-required="true"
+              aria-invalid={titleError || undefined}
               autoFocus
             />
-            {titleError && <span style={{ color: 'var(--danger)', fontSize: '12px' }}>El título es requerido.</span>}
+            {titleError && <span role="alert" style={{ color: 'var(--danger)', fontSize: '12px' }}>El título es requerido.</span>}
           </div>
 
           <div className="board-form-group">
-            <label className="board-form-label">Descripción</label>
+            <label htmlFor={descId} className="board-form-label">Descripción</label>
             <textarea
+              id={descId}
               className="board-textarea"
               placeholder="Descripción opcional..."
               value={description}
@@ -148,32 +159,47 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
           </div>
 
           <div className="board-form-group">
-            <label className="board-form-label">Dueño / Encargado <span style={{color: 'var(--danger)'}}>*</span></label>
+            <label className="board-form-label">Dueño / Encargado <span style={{color: 'var(--danger)'}} aria-hidden="true">*</span></label>
             {selectedOwnerUser ? (
               <div className="board-chips-container" style={{ marginBottom: 0 }}>
                 <div className="board-chip">
                   {selectedOwnerUser.name}
-                  <span className="board-chip-remove" onClick={() => setOwnerId('')}>×</span>
+                  <button
+                    type="button"
+                    className="board-chip-remove"
+                    onClick={() => setOwnerId('')}
+                    aria-label={`Quitar a ${selectedOwnerUser.name}`}
+                  >
+                    ×
+                  </button>
                 </div>
               </div>
             ) : (
               <div style={{ position: 'relative' }}>
-                <input 
-                  type="text" 
+                <input
+                  id={ownerIdId}
+                  type="text"
                   className={`board-input ${ownerError ? 'error' : ''}`}
-                  placeholder="Buscar y seleccionar dueño..." 
+                  placeholder="Buscar y seleccionar dueño..."
                   value={ownerSearch}
                   onChange={(e) => setOwnerSearch(e.target.value)}
                   onFocus={() => setIsOwnerSearchFocused(true)}
                   onBlur={() => setTimeout(() => setIsOwnerSearchFocused(false), 200)}
+                  aria-required="true"
+                  aria-invalid={ownerError || undefined}
+                  role="combobox"
+                  aria-expanded={isOwnerSearchFocused && ownerSearch.trim() !== ''}
+                  aria-autocomplete="list"
                 />
                 {isOwnerSearchFocused && ownerSearch.trim() !== '' && (
-                  <div className="board-dropdown-list">
+                  <div className="board-dropdown-list" role="listbox">
                     {filteredOwners.length > 0 ? (
                       filteredOwners.map(u => (
-                        <div 
-                          key={u.id} 
+                        <div
+                          key={u.id}
                           className="board-dropdown-item"
+                          role="option"
+                          aria-selected="false"
                           onClick={() => {
                             setOwnerId(u.id);
                             setOwnerSearch('');
@@ -193,11 +219,11 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
                 )}
               </div>
             )}
-            {ownerError && <span style={{ color: 'var(--danger)', fontSize: '12px' }}>El dueño es requerido para enviar correos.</span>}
+            {ownerError && <span role="alert" style={{ color: 'var(--danger)', fontSize: '12px' }}>El dueño es requerido para enviar correos.</span>}
           </div>
 
           <div className="board-form-group">
-            <label className="board-form-label">Miembros</label>
+            <label htmlFor={memberIdId} className="board-form-label">Miembros</label>
             {selectedMembers.length > 0 && (
               <div className="board-chips-container">
                 {selectedMembers.map(id => {
@@ -206,30 +232,43 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
                   return (
                     <div key={id} className="board-chip">
                       {u.name}
-                      <span className="board-chip-remove" onClick={() => removeMember(id)}>×</span>
+                      <button
+                        type="button"
+                        className="board-chip-remove"
+                        onClick={() => removeMember(id)}
+                        aria-label={`Quitar a ${u.name}`}
+                      >
+                        ×
+                      </button>
                     </div>
                   );
                 })}
               </div>
             )}
-            
+
             <div style={{ position: 'relative' }}>
-              <input 
-                type="text" 
+              <input
+                id={memberIdId}
+                type="text"
                 className="board-input"
-                placeholder="Buscar para agregar miembros..." 
+                placeholder="Buscar para agregar miembros..."
                 value={memberSearch}
                 onChange={(e) => setMemberSearch(e.target.value)}
                 onFocus={() => setIsMemberSearchFocused(true)}
                 onBlur={() => setTimeout(() => setIsMemberSearchFocused(false), 200)}
+                role="combobox"
+                aria-expanded={isMemberSearchFocused && memberSearch.trim() !== ''}
+                aria-autocomplete="list"
               />
               {isMemberSearchFocused && memberSearch.trim() !== '' && (
-                <div className="board-dropdown-list">
+                <div className="board-dropdown-list" role="listbox">
                   {filteredMembers.length > 0 ? (
                     filteredMembers.map(u => (
-                      <div 
-                        key={u.id} 
+                      <div
+                        key={u.id}
                         className="board-dropdown-item"
+                        role="option"
+                        aria-selected="false"
                         onClick={() => {
                           setSelectedMembers(prev => [...prev, u.id]);
                           setMemberSearch('');
@@ -255,8 +294,8 @@ export default function BoardModal({ isOpen, onClose, boardToEdit }) {
           <button className="board-btn-cancel" onClick={handleClose}>
             Cancelar
           </button>
-          <button 
-            className="board-btn-save" 
+          <button
+            className="board-btn-save"
             onClick={handleSave}
             disabled={!title.trim() || !ownerId}
           >

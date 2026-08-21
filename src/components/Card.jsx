@@ -1,76 +1,36 @@
-import { useState, memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useBoards } from '../context/BoardContext';
 import { useTasks } from '../context/TaskContext';
 import { useUI } from '../context/UIContext';
 import { isCompletedColumn } from '../utils/columnHelpers';
 import '../styles/Card.css';
 
-function Card({ card }) {
-  const { columns, moveColumn } = useBoards();
-  const { deleteCard, moveCard, duplicateCard } = useTasks();
+export function Card({ card, isDragging = false }) {
+  const { columns } = useBoards();
+  const { deleteCard, duplicateCard } = useTasks();
   const { setActiveCardId } = useUI();
   const [isDuplicating, setIsDuplicating] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isDragOverCard, setIsDragOverCard] = useState(false);
 
-  // Subtasks progress calculations
   const totalSubtasks = card.subtasks.length;
-  const completedSubtasks = card.subtasks.filter(sub => sub.completed).length;
+  const completedSubtasks = card.subtasks.filter((sub) => sub.completed).length;
   const progressPercent = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
 
-  // Overdue check (uses the dynamic "completed" column detection)
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const isInCompletedColumn = isCompletedColumn(card.columnId, columns);
 
-  const overdueSubtasksCount = isInCompletedColumn ? 0 : card.subtasks.filter(
-    sub => !sub.completed && sub.dueDate && sub.dueDate < todayStr
-  ).length;
-
-  const handleDragStart = (e) => {
-    e.stopPropagation();
-    e.dataTransfer.setData('text/plain', card.id);
-    // Use timeout to delay style change so the dragged ghost image looks normal
-    setTimeout(() => {
-      setIsDragging(true);
-    }, 0);
-  };
-
-  const handleDragEnd = () => {
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOverCard(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragOverCard(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOverCard(false);
-    const draggedCardId = e.dataTransfer.getData('text/plain');
-    const dragColId = e.dataTransfer.getData('text/column');
-    if (draggedCardId && draggedCardId !== card.id) {
-      moveCard(draggedCardId, card.columnId, card.id);
-    } else if (dragColId) {
-      if (dragColId !== card.columnId) {
-        moveColumn(dragColId, card.columnId);
-      }
-    }
-  };
+  const overdueSubtasksCount = isInCompletedColumn
+    ? 0
+    : card.subtasks.filter(
+        (sub) => !sub.completed && sub.dueDate && sub.dueDate < todayStr
+      ).length;
 
   const handleDelete = (e) => {
-    e.stopPropagation(); // Prevent opening modal
+    e.stopPropagation();
     deleteCard(card.id);
   };
 
   const handleDuplicate = async (e) => {
-    e.stopPropagation(); // Prevent opening modal
+    e.stopPropagation();
     if (isDuplicating) return;
     setIsDuplicating(true);
     try {
@@ -82,13 +42,7 @@ function Card({ card }) {
 
   return (
     <div
-      className={`card-wrapper ${isDragging ? 'dragging' : ''} ${isDragOverCard ? 'drag-over-card' : ''}`}
-      draggable="true"
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      className={`card-wrapper ${isDragging ? 'dragging' : ''}`}
       onClick={() => setActiveCardId(card.id)}
       style={card.color ? { backgroundColor: `${card.color}0f`, borderColor: `${card.color}33` } : {}}
       title="Haz clic para ver detalles de la tarea"
@@ -167,5 +121,5 @@ function Card({ card }) {
 }
 
 export default memo(Card, (prevProps, nextProps) => {
-  return prevProps.card === nextProps.card;
+  return prevProps.card === nextProps.card && prevProps.isDragging === nextProps.isDragging;
 });
